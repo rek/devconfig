@@ -1,0 +1,5 @@
+alias gi='git commit -am '
+alias go='git checkout '
+alias gm='git merge '
+alias gp='git pull'
+alias gc='git cherry-pick '

@@ -1,0 +1,12 @@
+#!/bin/zsh
+byobu new-window -n DTEApp "cd /home/rek/dev/dte-app && c && v && byobu split-window -h rainbowstream && zsh -l"
+byobu new-window -n Entities "cd /home/rek/dev/dte-app/src/submodules/entities && c && v && zsh -l"
+byobu new-window -n ComponentsM "cd /home/rek/dev/dte-app/src/submodules/components-material && c && v && zsh -l"
+byobu new-window -n Components "cd /home/rek/dev/dte-app/src/submodules/components && c && v && zsh -l"
+byobu new-window -n Baseapp "cd /home/rek/dev/dte-app/src/submodules/baseApp && c && v && zsh -l"
+byobu new-window -n Doctype "cd /home/rek/dev/dte-app/src/submodules/doctype && c && v && zsh -l"
+byobu new-window -n Document "cd /home/rek/dev/dte-app/src/submodules/document && c && v && zsh -l"
+byobu new-window -n Integrations "cd /home/rek/dev/dte-app/src/submodules/integrations && c && v && zsh -l"
+
+exit 1
+

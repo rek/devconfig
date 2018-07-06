@@ -1,0 +1,8 @@
+<snippet>
+	<content><![CDATA[
+(${1}) => {
+	${2}
+}
+]]></content>
+	<tabTrigger>fat arrow function</tabTrigger>
+</snippet>

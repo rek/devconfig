@@ -1,0 +1,9 @@
+<snippet>
+    <content><![CDATA[
+})
+]]></content>
+    <tabTrigger>w</tabTrigger>
+    <description>Close callback function: });</description>
+    <!-- Optional: Set a scope to limit where the snippet will trigger -->
+    <!-- <scope>source.javascript</scope> -->
+</snippet>

@@ -1,0 +1,14 @@
+<snippet>
+	<content><![CDATA[
+shouldComponentUpdate(newProps, newState) {
+	console.log('shouldComponentUpdate this.props', this.props);
+	console.log('shouldComponentUpdate newProps', newProps);
+	console.log('shouldComponentUpdate this.state', this.state);
+	console.log('shouldComponentUpdate newState', newState);
+	return true${1}
+}
+
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>scu</tabTrigger>
+</snippet>

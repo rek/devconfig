@@ -1,0 +1,10 @@
+<snippet>
+	<content><![CDATA[
+componentWillReceiveProps(newProps) {
+	console.log('this.props', this.props);
+	console.log('newProps', newProps);
+	${1}
+}
+]]></content>
+	<tabTrigger>wrp</tabTrigger>
+</snippet>

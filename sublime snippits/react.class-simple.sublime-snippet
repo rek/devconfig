@@ -1,0 +1,8 @@
+<snippet>
+	<content><![CDATA[
+class ${1} extends React.Component {
+	${2}
+]]></content>
+	<!-- Optional: Set a tabTrigger to define how to trigger the snippet -->
+	<tabTrigger>react.class.simple</tabTrigger>
+</snippet>

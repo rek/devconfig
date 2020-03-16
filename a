@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+echo ''
+echo '~~~~~~~~ Starting all folder search ~~~~~~~'
+echo ''
+
+grep --exclude-dir=node_modules -rHn --color=auto "${1}" .
+
+echo ''

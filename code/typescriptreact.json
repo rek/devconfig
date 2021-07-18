@@ -1,28 +1,24 @@
 {
-	"React.SFC": {
-		"prefix": "sfc",
+	"React.FC": {
+		"prefix": "fc",
 		"body": [
-			"import React from 'react'",
+			"import * as React from 'react'",
 			"",
 			"interface Props {",
-			"	$1",
+			"	$2",
 			"}",
-			"const Component: React.SFC<Props> = ({}) => {",
+			"export const $1: React.FC<Props> = ({}) => {",
 			"	return (",
 			"	)",
 			"}",
 			"",
-			"export default Component",
-			"",
 		],
-		"description": "Empty SFC"
+		"description": "Empty React.FC"
 	},
-
-	"Console.log": {
-		"prefix": ";",
+	"log": {
+		"prefix": "clo",
 		"body": [
-			"console.log($1)",
-		],
-		"description": "Log"
+			"console.log('$1', $1)"
+		]
 	},
 }

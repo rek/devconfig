@@ -2,10 +2,10 @@
 
 echo ''
 echo '--------------------------'
-echo '--___--///^^^^STARTING ./src/ SEARCH'
+echo '--___--///^^^^STARTING app SEARCH'
 echo '-------------__________-------------'
 echo ''
 
-grep -rHn --color=auto "${1}" ./src 
+grep -rHn --color=auto --include=\*.{js,ts,tsx} "${1}" . --exclude-dir={node_modules,.expo}
 
 echo ''

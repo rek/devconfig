@@ -1,8 +1,15 @@
 {
+	"state": {
+		"prefix": "useState",
+		"body": [
+			"const [$1, set$1] = React.useState()",
+		],
+		"description": "React.useState()"
+	},
 	"React.FC": {
 		"prefix": "fc",
 		"body": [
-			"import * as React from 'react'",
+			"import React from 'react'",
 			"",
 			"interface Props {",
 			"	$2",
@@ -13,12 +20,104 @@
 			"}",
 			"",
 		],
-		"description": "Empty React.FC"
+		"description": "Empty FC"
 	},
-	"log": {
+	"React.FC-no-props": {
+		"prefix": "fce",
+		"body": [
+			"import React from 'react'",
+			"",
+			"export const $1: React.FC = () => {",
+			"	return (",
+			"     <div></div>",
+			"	)",
+			"}",
+			"",
+		],
+		"description": "Empty FC - No Props"
+	},
+	"test": {
+		"prefix": "test",
+		"body": [
+			"import { $1 } from '../$1';",
+			"",
+			"describe('$1', () => {",
+			"  it('should be ok in good case', () => {",
+			"    expect($1()).toEqual('');",
+			"  });",
+			"});",
+			"",
+		],
+		"description": "Test basic case"
+	},
+	"test-hook": {
+		"prefix": "test-hook",
+		"body": [
+			"import { renderHook } from '@testing-library/react-hooks';",
+			"import { $1 } from '../$1';",
+			"",
+			"describe('$1', () => {",
+			"  it('should be ok in good case', () => {",
+			"    const { result, waitForNextUpdate } = renderHook(() => $1());",
+			"    expect(result.current).toEqual('');",
+			"  });",
+			"});",
+			"",
+		],
+		"description": "Test hook case"
+	},
+	"try": {
+		"prefix": "try",
+		"body": [
+			"try {",
+			"  $1",
+			"} catch (error) {",
+			"  console.error(error)",
+			"}",
+		],
+		"description": "Try Catch"
+	},
+	"wrapper": {
+		"prefix": "wrapper",
+		"body": [
+			"import styled from 'styled-components/macro';",
+			"",
+			"const Wrapper = styled.div`"
+			"  $1",
+			"`"
+		],
+		"description": "Styled Component wrapper"
+	},
+	"Block comment": {
+		"prefix": "/*",
+		"body": [
+			"/*",
+			"* $1",
+			"*",
+			"*",
+			"*/",
+		],
+		"description": "Block comment"
+	},
+	"Console.log": {
+		"prefix": ";",
+		"body": [
+			"console.log('$1', $1)",
+		],
+		"description": "Log"
+	},
+	"Console.log2": {
 		"prefix": "clo",
 		"body": [
-			"console.log('$1', $1)"
-		]
+			"console.log('$1', $1)",
+		],
+		"description": "Log"
+	},
+	"ignore.logs": {
+		"prefix": "ignore-log",
+		"body": [
+			"// eslint-disable-next-line no-console",
+		],
+		"description": "ignore next console.log"
 	},
 }

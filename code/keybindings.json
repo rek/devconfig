@@ -1,0 +1,47 @@
+// Place your key bindings in this file to override the defaults
+[
+  {
+    "key": "ctrl+tab",
+    "command": "workbench.action.nextEditor"
+  },
+  {
+    "key": "alt+,",
+    "command": "editor.action.commentLine"
+  },
+  {
+    "key": "ctrl+shift+tab",
+    "command": "workbench.action.previousEditor"
+  },
+  {
+    "key": "ctrl+;",
+    "command": "workbench.action.focusNextGroup"
+  },
+  {
+    "key": "alt+meta+right",
+    "command": "workbench.action.moveEditorToNextGroup"
+  },
+  {
+    "key": "alt+meta+left",
+    "command": "workbench.action.moveEditorToPreviousGroup"
+  },
+  {
+    "key": "ctrl+alt+f",
+    "command": "workbench.files.action.showActiveFileInExplorer"
+  },
+  {
+    "key": "ctrl+alt+p",
+    "command": "copyRelativeFilePath"
+  },
+  {
+    "key": "f10",
+    "command": "editor.action.revealDeclaration"
+  },
+  {
+    "key": "ctrl+shift+[",
+    "command": "workbench.action.focusFirstEditorGroup"
+  },
+  {
+    "key": "ctrl+shift+]",
+    "command": "workbench.action.focusSecondEditorGroup"
+  }
+]

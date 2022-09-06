@@ -1,7 +1,12 @@
 [user]
 	email = rekarnar@gmail.com
 	name = Adam Tombleson
+[checkout]
+        defaultRemote=origin
 [push]
 	default = simple
 [credential]
-	helper = cache --timeout=36000
+	helper = cache --timeout=3000000
+
+[pager]
+	branch = false

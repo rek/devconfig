@@ -123,8 +123,19 @@ if [ -f '/home/adam/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/home/ad
 # The next line enables shell command completion for gcloud.
 if [ -f '/home/adam/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/adam/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
 
+<<<<<<< Updated upstream
 export GITHUB_USERNAME=rek
 
+=======
+# Sourced from git-scripts/git-cognite
+export GITHUB_USERNAME=rek
+
+
+# Sourced from git-scripts/git-cognite
+export GITHUB_USERNAME=rek
+
+
+>>>>>>> Stashed changes
 # bun completions
 [ -s "/home/adam/.bun/_bun" ] && source "/home/adam/.bun/_bun"
 
@@ -134,3 +145,7 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 
 export DENO_INSTALL="/home/adam/.deno"
 export PATH="$DENO_INSTALL/bin:$PATH"
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes

@@ -13,3 +13,9 @@ alias c='git status'
 alias hp='head package.json'
 alias g_re='git checkout release && git merge master && git push && git checkout master' 
 alias hs="echo 'running: hub ci-status -v' && hub ci-status -v"
+<<<<<<< Updated upstream
+=======
+
+
+alias ci="echo 'running: hub ci-status -v' && hub ci-status -v"
+>>>>>>> Stashed changes

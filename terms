@@ -1,8 +1,4 @@
 #!/bin/bash
-guake -n guake -e 'cd dev/dragonlaw && c && v' guake -r 'Main'
-guake -n guake -e 'cd dev/dragonlaw/src/scripts/modules/document && c && v' guake -r 'Document'
-guake -n guake -e 'cd dev/dragonlaw/src/scripts/modules/doctype && c && v' guake -r 'Doctype'
-guake -n guake -e 'cd dev/dragonlaw/src/scripts/baseApp && c && v' guake -r 'BaseApp'
-guake -n guake -e 'cd dev/dragonlaw/src/scripts/submodules/entities && c && v' guake -r 'Entities'
-guake -n guake -e 'cd dev/dragonlaw/src/scripts/submodules/components && c && v' guake -r 'Components'
+guake -n guake -e 'cd ~/dev/prettypoly && c && v' guake -r 'PP'
+# guake -n guake -e 'cd ~/dev/prettypoly/src && c && v' guake -r 'Components'
 exit 1

@@ -1,4 +1,0 @@
-#!/bin/bash
-guake -n guake -e 'cd ~/dev/prettypoly && c && v' guake -r 'PP'
-# guake -n guake -e 'cd ~/dev/prettypoly/src && c && v' guake -r 'Components'
-exit 1

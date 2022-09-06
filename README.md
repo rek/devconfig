@@ -4,7 +4,6 @@ my scripts for dev
 ## How to use this stuff:
 ```
 mv .byobu ~/
-mv sublime\ snippits/* ~/.config/sublime-text-3/Packages/User/
 mv code/* ~/.config/Code/User/snippets/
 mv * ~/usr/bin
 ```

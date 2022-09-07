@@ -108,7 +108,8 @@ source $HOME/.aliases
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 
-source ~/powerlevel10k/powerlevel10k.zsh-theme
+# source ~/powerlevel10k/powerlevel10k.zsh-theme
+source $ZSH_CUSTOM/themes/powerlevel10k/powerlevel10k.zsh-theme
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
@@ -123,19 +124,8 @@ if [ -f '/home/adam/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/home/ad
 # The next line enables shell command completion for gcloud.
 if [ -f '/home/adam/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/adam/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
 
-<<<<<<< Updated upstream
 export GITHUB_USERNAME=rek
 
-=======
-# Sourced from git-scripts/git-cognite
-export GITHUB_USERNAME=rek
-
-
-# Sourced from git-scripts/git-cognite
-export GITHUB_USERNAME=rek
-
-
->>>>>>> Stashed changes
 # bun completions
 [ -s "/home/adam/.bun/_bun" ] && source "/home/adam/.bun/_bun"
 
@@ -145,7 +135,3 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 
 export DENO_INSTALL="/home/adam/.deno"
 export PATH="$DENO_INSTALL/bin:$PATH"
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes

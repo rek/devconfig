@@ -1,1 +1,9 @@
-/home/adam/dev/devconfig/bin/a
+#!/bin/zsh
+
+echo ''
+echo '~~~~~~~~ Starting ./src search in TS files ~~~~~~'
+echo ''
+
+grep --exclude-dir={node_modules,.expo} --include=\*.ts --include=\*.tsx --include=\*.js --include=\*.html -rHn --color=auto "${1}" src
+
+echo ''

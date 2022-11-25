@@ -3,9 +3,9 @@ my scripts for dev
 
 ## How to use this stuff:
 ```
-mv .byobu ~/
-mv code/* ~/.config/Code/User/snippets/
-mv * ~/usr/bin
+cp -r .byobu ~/
+cp .* ~/
+ln -sf bin/* ~/bin // not working
 ```
 
 ## Other things to do

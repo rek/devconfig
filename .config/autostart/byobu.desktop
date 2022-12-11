@@ -1,0 +1,15 @@
+[Desktop Entry]
+Name=Byobu Terminal
+Comment=Advanced Command Line and Text Window Manager
+Icon=byobu
+Exec=byobu
+Terminal=true
+Type=Application
+Categories=GNOME;GTK;Utility;
+X-GNOME-Gettext-Domain=byobu
+X-GNOME-Autostart-enabled=true
+NoDisplay=false
+Hidden=false
+Name[en_US]=Byobu Terminal
+Comment[en_US]=Advanced Command Line and Text Window Manager
+X-GNOME-Autostart-Delay=3

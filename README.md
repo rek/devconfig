@@ -3,7 +3,7 @@ my scripts for dev
 
 ## How to use this stuff:
 ```
-cp -r .byobu ~/
+cp -r .config .byobu ~
 cp .* ~/
 ln -sf bin/* ~/bin // not working
 ```

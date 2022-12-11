@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=guake Terminal
+Icon=guake
+Exec=guake
+Terminal=false
+StartupNotify=false
+Type=Application
+Categories=GNOME;GTK;Utility;
+X-GNOME-Gettext-Domain=guake
+X-GNOME-Autostart-enabled=true
+NoDisplay=false
+Hidden=false
+X-GNOME-Autostart-Delay=4

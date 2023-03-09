@@ -4,8 +4,8 @@ my scripts for dev
 ## How to use this stuff:
 ```
 cp -r .config .byobu ~
-cp .* ~/
-ln -sf bin/* ~/bin // not working
+cp dotfiles/* ~/
+ln -s bin/* /usr/local/bin
 ```
 
 ## Other things to do

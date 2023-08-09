@@ -14,3 +14,4 @@ alias v='git branch -v'
 alias c='git status'
 alias hp='head package.json'
 alias ci="echo 'running: hub ci-status -v' && hub ci-status -v"
+alias mp="git stash && go main && git pull && git stash pop"

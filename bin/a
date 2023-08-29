@@ -1,9 +1,12 @@
 #!/bin/zsh
 
+# allow for searching in other locations, but default to: .
+LOCATION=${2:-.}
+
 echo ''
-echo '~~~~~~~~ Starting all folder search ~~~~~~~'
+echo "~~~~~~~~ Starting search for '$1' in '$LOCATION' ~~~~~~~"
 echo ''
 
-grep --exclude-dir={node_modules,.expo,dist,.git} -rHn --color=auto "${1}" .
+grep --exclude-dir={node_modules,.expo,dist,.git,coverage,.venv} -rHn --color=auto "${1}" $LOCATION
 
 echo ''

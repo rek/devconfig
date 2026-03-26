@@ -10,7 +10,7 @@ echo "~~~~~~~~ Starting search for '$1' in '$LOCATION' ~~~~~~~"
 echo ''
 
 # grep --exclude-dir={node_modules,.nx,.next,storybook-static,.moon,.yarn,.expo,dist,.git,coverage,.venv,sourcemaps,build} --exclude-from={*/eslint-cache*} -rHn --color=auto "${1}" $LOCATION
-EXCLUDED_DIRS=(node_modules .nx .next storybook-static .moon .yarn .expo dist .git coverage .venv sourcemaps build)
+EXCLUDED_DIRS=(node_modules .nx .next storybook-static .moon .yarn .expo dist .git coverage .venv sourcemaps build tsbuild)
 
 # Base grep command
 CMD=(grep -rHn --color=auto)

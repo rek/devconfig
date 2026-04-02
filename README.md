@@ -3,9 +3,12 @@ my scripts for dev
 
 ## How to use this stuff:
 ```
-cp -r .config .byobu ~
+cp -r .config ~
 cp dotfiles/* ~/
 ln -s bin/* /usr/local/bin
+
+# Install zellij (terminal multiplexer, replaces byobu)
+./bin/install-zellij
 ```
 
 ## Other things to do
@@ -15,6 +18,13 @@ https://gist.github.com/rek/296c6544e08cc8198f4e04ce68e8d7fc
 ## ddterm (Wayland dropdown terminal)
 
 Install via GNOME Extension Manager, search `ddterm`.
+
+## Guake (X11 dropdown terminal)
+
+Install: `sudo apt install guake`
+
+Zellij auto-start is skipped automatically in Guake (detected via parent process).
+No extra config needed — just open Guake and get a plain shell.
 
 ### CapsLock as toggle key
 

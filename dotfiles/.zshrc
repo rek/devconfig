@@ -1,3 +1,18 @@
+# OPENSPEC:START
+# OpenSpec shell completions configuration
+fpath=("/home/adam/.oh-my-zsh/custom/completions" $fpath)
+autoload -Uz compinit
+compinit
+# OPENSPEC:END
+
+# Auto-start zellij (replaced byobu)
+# Only auto-attach when opening a fresh terminal — skip in VS Code, Guake, embedded terms, or if already inside zellij
+_parent_proc=$(ps -p $PPID -o comm= 2>/dev/null)
+if [[ -z "$ZELLIJ" && -z "$ZELLIJ_SESSION_NAME" && "$TERM_PROGRAM" != "vscode" && "$TERM_PROGRAM" != "guake" && -z "$INSIDE_EMACS" && -z "$VIMRUNTIME" && -z "$GUAKE" && "$_parent_proc" != "guake" ]]; then
+  exec ~/.local/bin/zellij attach --create default
+fi
+unset _parent_proc
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
@@ -74,7 +89,7 @@ export ZSH="/home/adam/.oh-my-zsh"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git zsh-completions kubecfg zsh-autosuggestions zsh-syntax-highlighting docker docker-compose)
+plugins=(git kubectl oc zsh-autosuggestions zsh-syntax-highlighting anthropic-peak)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -118,12 +133,6 @@ source $ZSH_CUSTOM/themes/powerlevel10k/powerlevel10k.zsh-theme
 
 COGNITE_API_KEY=123
 
-# The next line updates PATH for the Google Cloud SDK.
-if [ -f '/home/adam/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/home/adam/Downloads/google-cloud-sdk/path.zsh.inc'; fi
-
-# The next line enables shell command completion for gcloud.
-if [ -f '/home/adam/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/adam/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
-
 export GITHUB_USERNAME=rek
 
 # bun completions
@@ -136,10 +145,82 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 export DENO_INSTALL="/home/adam/.deno"
 export PATH="$DENO_INSTALL/bin:$PATH"
 
-# Auto-start zellij (replaced byobu)
-# Only auto-attach when opening a fresh terminal — skip in VS Code, Guake, embedded terms, or if already inside zellij
-_parent_proc=$(ps -p $PPID -o comm= 2>/dev/null)
-if [[ -z "$ZELLIJ" && -z "$ZELLIJ_SESSION_NAME" && "$TERM_PROGRAM" != "vscode" && -z "$INSIDE_EMACS" && -z "$VIMRUNTIME" && -z "$GUAKE" && "$_parent_proc" != "guake" ]]; then
-  exec ~/.local/bin/zellij attach --create default
+# linux brew
+export PATH="$HOME/.linuxbrew/bin:$PATH"
+export MANPATH="$HOME/.linuxbrew/share/man:$MANPATH"
+export INFOPATH="$HOME/.linuxbrew/share/info:$INFOPATH"
+
+# Generated for envman. Do not edit.
+[ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
+
+# Openshift
+export PATH="/home/adam/.crc/bin/oc:$PATH"
+export PATH="$HOME/.crc/bin/oc:$PATH"
+
+# Andriod studio
+export ANDROID_HOME=$HOME/Android/Sdk
+export PATH=$PATH:$ANDROID_HOME/emulator
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+
+export PATH=$PATH:/home/adam/bin
+
+# Moon
+# export PATH="/home/adam/.moon/bin:$PATH"
+
+# Proto
+export PROTO_HOME="$HOME/.proto"
+export PATH="$PROTO_HOME/shims:$PROTO_HOME/bin:$PATH"
+#export PATH="$HOME/.moon/bin:$PATH"
+
+# freetype
+export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/home/adam/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/adam/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/adam/miniconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/adam/miniconda3/bin:$PATH"
+    fi
 fi
-unset _parent_proc
+unset __conda_setup
+# <<< conda initialize <<<
+
+eval "$(direnv hook zsh)"
+
+[ -s "/home/adam/.scm_breeze/scm_breeze.sh" ] && source "/home/adam/.scm_breeze/scm_breeze.sh"
+
+export PATH=$PATH:/usr/local/go/bin
+export LD_LIBRARY_PATH=/usr/lib32/nvidia:/usr/lib/nvidia:$LD_LIBRARY_PATH
+
+# add fuzzy finder
+source /usr/share/doc/fzf/examples/key-bindings.zsh
+source /usr/share/doc/fzf/examples/completion.zsh
+
+# argocd rollouts
+source <(kubectl-argo-rollouts completion zsh)
+
+# for beads ai coding tool
+export PATH="$PATH:/home/adam/go/bin"
+
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/home/adam/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/home/adam/Downloads/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/home/adam/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/adam/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
+
+# add Pulumi to the PATH
+export PATH=$PATH:/home/adam/.pulumi/bin
+
+# VS Code shell integration
+[[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
+
+# peon-ping quick controls
+alias peon="bash /home/adam/.claude/hooks/peon-ping/peon.sh"
+[ -f /home/adam/.claude/hooks/peon-ping/completions.bash ] && source /home/adam/.claude/hooks/peon-ping/completions.bash
+

@@ -1,12 +1,23 @@
 # devconfig
 my scripts for dev
 
+## Quick install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/bin/install.sh | bash
+```
+
+Or after cloning:
+```bash
+./bin/install.sh
+```
+
 ## Things to do after installing Ubuntu
 
 ### Install
 
 ```bash
-sudo apt-get install aptitude git zsh htop curl
+sudo apt-get install aptitude git zsh htop curl alacritty
 ```
 
 ### Manual Install
@@ -66,21 +77,9 @@ git config --global pager.branch false
 
 ## ddterm (Wayland dropdown terminal)
 
+Preferred dropdown terminal on Wayland.
+
 Install via GNOME Extension Manager, search `ddterm`.
-
-## Guake (X11 dropdown terminal)
-
-Install: `sudo apt install guake`
-
-Zellij auto-start is skipped automatically in Guake (detected via parent process).
-No extra config needed — just open Guake and get a plain shell.
-
-Settings:
-- Main Window: Disable "appear on mouse display," enable "hide on lose focus"
-- Shell: Set default interpreter to zsh
-- Scrolling: Set scrollback lines to 10000
-- Appearance: Select "homebrew" built-in scheme
-- Quick open: `code -g %(file_path)s:%(line_number)s`
 
 ### CapsLock as toggle key
 
@@ -103,3 +102,16 @@ Set via dconf (the GUI dialog can't capture Ctrl+Tab):
 dconf write /com/github/amezin/ddterm/shortcut-next-tab "['<Primary>Tab']"
 dconf write /com/github/amezin/ddterm/shortcut-prev-tab "['<Primary><Shift>Tab']"
 ```
+
+## Guake (X11 / legacy)
+
+> **Deprecated:** prefer ddterm on Wayland.
+
+Install: `sudo apt install guake`
+
+Settings:
+- Main Window: Disable "appear on mouse display," enable "hide on lose focus"
+- Shell: Set default interpreter to zsh
+- Scrolling: Set scrollback lines to 10000
+- Appearance: Select "homebrew" built-in scheme
+- Quick open: `code -g %(file_path)s:%(line_number)s`

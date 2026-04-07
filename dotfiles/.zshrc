@@ -6,9 +6,9 @@ compinit
 # OPENSPEC:END
 
 # Auto-start zellij (replaced byobu)
-# Only auto-attach when opening a fresh terminal — skip in VS Code, Guake, embedded terms, or if already inside zellij
+# Only auto-attach when opening a fresh terminal — skip in VS Code, Guake, ddterm, embedded terms, or if already inside zellij
 _parent_proc=$(ps -p $PPID -o comm= 2>/dev/null)
-if [[ -z "$ZELLIJ" && -z "$ZELLIJ_SESSION_NAME" && "$TERM_PROGRAM" != "vscode" && "$TERM_PROGRAM" != "guake" && -z "$INSIDE_EMACS" && -z "$VIMRUNTIME" && -z "$GUAKE" && "$_parent_proc" != "guake" ]]; then
+if [[ -z "$ZELLIJ" && -z "$ZELLIJ_SESSION_NAME" && "$TERM_PROGRAM" != "vscode" && "$TERM_PROGRAM" != "guake" && -z "$INSIDE_EMACS" && -z "$VIMRUNTIME" && -z "$GUAKE" && "$_parent_proc" != "guake" && -z "$DDTERM" ]]; then
   exec ~/.local/bin/zellij attach --create default
 fi
 unset _parent_proc

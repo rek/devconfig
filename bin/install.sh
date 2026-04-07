@@ -89,16 +89,22 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 6. Copy dotfiles
+# 6. Symlink dotfiles
 # ---------------------------------------------------------------------------
-header "Copying dotfiles to ~/ ..."
-cp "$REPO_ROOT"/dotfiles/* "$HOME/"
+header "Symlinking dotfiles to ~/ ..."
+for f in "$REPO_ROOT"/dotfiles/.*; do
+  [ "$(basename "$f")" = "." ] || [ "$(basename "$f")" = ".." ] && continue
+  ln -sf "$f" "$HOME/$(basename "$f")"
+done
 
 # ---------------------------------------------------------------------------
-# 7. Copy .config
+# 7. Symlink .config entries
 # ---------------------------------------------------------------------------
-header "Copying .config to ~/ ..."
-cp -r "$REPO_ROOT/.config" "$HOME/"
+header "Symlinking .config to ~/ ..."
+mkdir -p "$HOME/.config"
+for d in "$REPO_ROOT"/.config/*/; do
+  ln -sf "$d" "$HOME/.config/$(basename "$d")"
+done
 
 # ---------------------------------------------------------------------------
 # 8. Install zellij

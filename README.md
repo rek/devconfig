@@ -22,37 +22,12 @@ sudo apt-get install aptitude git zsh htop curl alacritty
 
 ### Manual Install
 
-- [Chrome](https://www.google.com/chrome/)
-- [VSCode](https://code.visualstudio.com/)
-- [GH CLI](https://cli.github.com/)
-- [NVM](https://github.com/nvm-sh/nvm)
-
-### ZSH
-
-```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-git clone --depth=1 https://github.com/romkatv/powerlevel10k.git $ZSH_CUSTOM/themes/powerlevel10k
-```
-
-Plugins:
-```bash
-git clone https://github.com/zsh-users/zsh-autosuggestions ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions
-git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
-git clone https://github.com/zsh-users/zsh-completions ${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions
-```
-
-Fonts: https://github.com/romkatv/powerlevel10k#manual-font-installation
+See [docs/manual-install.md](docs/manual-install.md).
 
 ### Dev Config
 
 ```bash
-git clone https://github.com/rek/devconfig.git && cd devconfig
-cp -r .config ~
-cp dotfiles/* ~/
-ln -s bin/* /usr/local/bin
-
-# Install zellij (terminal multiplexer)
-./bin/install-zellij
+git clone https://github.com/rek/devconfig.git ~/devconfig && ~/devconfig/bin/install.sh
 ```
 
 ### K8S

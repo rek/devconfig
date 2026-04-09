@@ -17,7 +17,7 @@ header() {
 # ---------------------------------------------------------------------------
 header "Installing apt packages..."
 sudo apt-get update -q
-sudo apt-get install -y aptitude git zsh htop curl alacritty
+sudo apt-get install -y aptitude git zsh htop curl alacritty wl-clipboard
 
 # ---------------------------------------------------------------------------
 # 2. oh-my-zsh

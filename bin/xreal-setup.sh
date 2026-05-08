@@ -68,10 +68,10 @@ xr_enable_breezy() {
 
 case "${1:-}" in
 
-  triple|extend|desk)
+  triple|extend|desk|glasses-only)
     mode="$1"
     # Python script auto-detects displays by vendor/product via D-Bus
-    output=$(/usr/bin/python3 "$(dirname "$0")/xreal-apply-triple.py")
+    output=$(/usr/bin/python3 "$(dirname "$0")/xreal-apply-triple.py" "$mode")
     echo "$output"
     if [ "$mode" = "triple" ] && echo "$output" | grep -q "HAS_GLASSES"; then
         xr_enable_breezy
@@ -123,6 +123,7 @@ case "${1:-}" in
     echo "  triple          Philips + Laptop + Glasses (glasses = breezy-desktop)"
     echo "  extend          Philips + Laptop + Glasses (glasses = normal 3rd monitor)"
     echo "  desk            Philips + Laptop (+ 2nd monitor if plugged in), no glasses"
+    echo "  glasses-only    Glasses (top) + Laptop (bottom), no Philips"
     echo "  install-breezy  Install breezy-desktop (virtual screens in glasses)"
     echo "  status          Show current layout"
     echo ""

@@ -69,7 +69,13 @@ for label, mon in [('Laptop', laptop), ('Philips', philips), ('Glasses', glasses
 for o in others:
     print(f"  Other:  {o['conn']} ({o['vendor']} {o['product']})")
 
-if not laptop or not philips:
+mode = sys.argv[1] if len(sys.argv) > 1 else 'default'
+
+if mode == 'glasses-only':
+    if not glasses or not laptop:
+        print("ERROR: glasses-only mode requires glasses + laptop", file=sys.stderr)
+        sys.exit(1)
+elif not laptop or not philips:
     print("ERROR: need at least laptop + Philips monitor", file=sys.stderr)
     print(f"  Found: {[m['conn'] for m in [laptop, philips, glasses] if m] + [o['conn'] for o in others]}", file=sys.stderr)
     sys.exit(1)
@@ -99,25 +105,40 @@ def add_monitor(mon, res, x, y, scale, transform, primary):
         monitor_entry))
 
 
-# Philips portrait-left at origin  (rotated = 1440w × 2560h)
-add_monitor(philips, (2560, 1440), 0, 0, 1.0, 1, False)
-
-# Laptop below Philips, centered
-add_monitor(laptop, (1920, 1200), 795, 2560, 1.0, 0, True)
-
-# Third display: glasses or second monitor
-third = glasses or (others[0] if others else None)
-if third:
-    if third is glasses:
-        res = (1920, 1080)
-    else:
-        res = third['preferred']
-    # Bottom-align with Philips (portrait height 2560)
-    y = max(0, 2560 - res[1])
-    print(f"  Third:  {third['conn']} at {res[0]}x{res[1]}, pos 1440x{y}")
-    add_monitor(third, res, 1440, y, 1.0, 0, False)
+if mode == 'glasses-only':
+    # Glasses at top, laptop below
+    add_monitor(glasses, (1920, 1080), 0, 0, 1.0, 0, False)
+    add_monitor(laptop, (1920, 1200), 0, 1080, 1.0, 0, True)
+    print("  Layout: Glasses (top) + Laptop (bottom)")
 else:
-    print("  Layout: Philips + Laptop only")
+    # Resolve actual Philips resolution first so we can compute positions
+    phil_res = (2560, 1440)
+    if phil_res not in philips['modes']:
+        phil_res = max(philips['modes'].keys(), key=lambda r: r[0] * r[1])
+        print(f"  Warning: Philips 2560x1440 not available, using {phil_res[0]}x{phil_res[1]}")
+    # Portrait (transform=1 rotates 90° CW): logical dims are swapped
+    phil_lw = phil_res[1]  # logical width  (1440 at native)
+    phil_lh = phil_res[0]  # logical height (2560 at native)
+
+    add_monitor(philips, phil_res, 0, 0, 1.0, 1, False)
+
+    # Laptop below Philips — x must overlap Philips x-range [0, phil_lw)
+    laptop_x = min(795, phil_lw - 1)
+    add_monitor(laptop, (1920, 1200), laptop_x, phil_lh, 1.0, 0, True)
+
+    # Third display: glasses or second monitor
+    third = glasses or (others[0] if others else None)
+    if third:
+        if third is glasses:
+            res = (1920, 1080)
+        else:
+            res = third['preferred']
+        # Bottom-align with Philips portrait height
+        y = max(0, phil_lh - res[1])
+        print(f"  Third:  {third['conn']} at {res[0]}x{res[1]}, pos {phil_lw}x{y}")
+        add_monitor(third, res, phil_lw, y, 1.0, 0, False)
+    else:
+        print("  Layout: Philips + Laptop only")
 
 # ── Apply (method=2 = persistent) ────────────────────────────────────────────
 

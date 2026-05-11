@@ -3,14 +3,25 @@ my scripts for dev
 
 ## Quick install
 
+**Ubuntu:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/bin/install.sh | bash
 ```
 
+**Arch / Omarchy:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/bin/install-arch.sh | bash
+```
+
 Or after cloning:
 ```bash
-./bin/install.sh
+./bin/install.sh         # Ubuntu
+./bin/install-arch.sh    # Arch / Omarchy
 ```
+
+The Arch variant backs up any existing dotfiles/configs to `*.bak` before symlinking
+(Omarchy ships its own `.zshrc`, hypr config, etc. — you'll want to merge anything
+useful from `~/.zshrc.bak` back in).
 
 ## Things to do after installing Ubuntu
 

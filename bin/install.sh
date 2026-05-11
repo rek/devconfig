@@ -3,6 +3,7 @@
 # Usage (one-liner): curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/bin/install.sh | bash
 # Usage (after clone): ./bin/install.sh
 set -e
+shopt -s nullglob
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -17,7 +18,7 @@ header() {
 # ---------------------------------------------------------------------------
 header "Installing apt packages..."
 sudo apt-get update -q
-sudo apt-get install -y aptitude git zsh htop curl alacritty wl-clipboard
+sudo apt-get install -y aptitude git zsh htop btop curl alacritty wl-clipboard
 
 # ---------------------------------------------------------------------------
 # 2. oh-my-zsh
@@ -103,7 +104,13 @@ done
 header "Symlinking .config to ~/ ..."
 mkdir -p "$HOME/.config"
 for d in "$REPO_ROOT"/.config/*/; do
-  ln -sf "$d" "$HOME/.config/$(basename "$d")"
+  target="$HOME/.config/$(basename "$d")"
+  # If target is a real (non-symlink) directory, back it up first
+  if [ -d "$target" ] && [ ! -L "$target" ]; then
+    echo "Backing up existing $target -> ${target}.bak"
+    mv "$target" "${target}.bak"
+  fi
+  ln -sfn "$d" "$target"
 done
 
 # ---------------------------------------------------------------------------

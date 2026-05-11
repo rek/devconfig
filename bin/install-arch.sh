@@ -56,12 +56,13 @@ if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/../dotfiles/.zshrc" ]; then
   REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
   echo "Running from within repo at $REPO_ROOT, skipping clone."
 else
-  if [ -d "$HOME/devconfig" ]; then
-    echo "devconfig already cloned at ~/devconfig, skipping."
+  REPO_ROOT="$HOME/dev/devconfig"
+  if [ -d "$REPO_ROOT" ]; then
+    echo "devconfig already cloned at $REPO_ROOT, skipping."
   else
-    git clone https://github.com/rek/devconfig.git "$HOME/devconfig"
+    mkdir -p "$HOME/dev"
+    git clone https://github.com/rek/devconfig.git "$REPO_ROOT"
   fi
-  REPO_ROOT="$HOME/devconfig"
 fi
 
 # ---------------------------------------------------------------------------

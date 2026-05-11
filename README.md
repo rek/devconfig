@@ -15,9 +15,13 @@ curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/bin/install-ar
 
 Or after cloning:
 ```bash
-./bin/install.sh         # Ubuntu
-./bin/install-arch.sh    # Arch / Omarchy
+mkdir -p ~/dev && git clone https://github.com/rek/devconfig.git ~/dev/devconfig
+~/dev/devconfig/bin/install.sh         # Ubuntu
+~/dev/devconfig/bin/install-arch.sh    # Arch / Omarchy
 ```
+
+The repo is cloned to `~/dev/devconfig` (both the quick-install one-liner and
+the script's auto-clone fallback use this location).
 
 The Arch variant backs up any existing dotfiles/configs to `*.bak` before symlinking
 (Omarchy ships its own `.zshrc`, hypr config, etc. — you'll want to merge anything
@@ -38,7 +42,7 @@ See [docs/manual-install.md](docs/manual-install.md).
 ### Dev Config
 
 ```bash
-git clone https://github.com/rek/devconfig.git ~/devconfig && ~/devconfig/bin/install.sh
+mkdir -p ~/dev && git clone https://github.com/rek/devconfig.git ~/dev/devconfig && ~/dev/devconfig/bin/install.sh
 ```
 
 ### K8S

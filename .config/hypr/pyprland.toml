@@ -1,0 +1,11 @@
+[pyprland]
+plugins = ["scratchpads"]
+
+[scratchpads.term]
+animation = "fromTop"
+command = "uwsm-app -- alacritty --class dropdown-term"
+class = "dropdown-term"
+size = "75% 60%"
+margin = 50
+unfocus = "hide"
+lazy = true

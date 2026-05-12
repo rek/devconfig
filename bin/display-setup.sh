@@ -16,6 +16,7 @@
 #
 #   extend          Philips (portrait) + Laptop + Glasses (glasses right of Philips)
 #   desk            Philips (portrait) + Laptop (+ 2nd external if connected)
+#   home            External (landscape, top) + Laptop (bottom), horizontally centered
 #   glasses-only    Glasses (top) + Laptop (bottom)
 #   status          Print `hyprctl monitors` for the current layout
 #
@@ -202,6 +203,29 @@ mode_desk() {
     fi
 }
 
+mode_home() {
+    [[ -z $LAPTOP || -z $PHILIPS ]] && {
+        echo "ERROR: home mode needs laptop + external monitor" >&2; exit 1; }
+
+    local lw; lw=$(dim "$LAPTOP" w)
+    local mw=$PHIL_W
+    local mh=$PHIL_H
+
+    # Center the narrower monitor horizontally; the wider one anchors at x=0.
+    local mon_x=0 laptop_x=0
+    if (( lw > mw )); then
+        mon_x=$(( (lw - mw) / 2 ))
+    elif (( mw > lw )); then
+        laptop_x=$(( (mw - lw) / 2 ))
+    fi
+
+    apply "$PHILIPS" "${PHIL_MODE},${mon_x}x0,1"
+    apply "$LAPTOP"  "preferred,${laptop_x}x${mh},1"
+
+    [[ -n $GLASSES ]] && disable_monitor "$GLASSES"
+    for o in "${OTHERS[@]}"; do disable_monitor "$o"; done
+}
+
 mode_glasses_only() {
     [[ -z $GLASSES || -z $LAPTOP ]] && {
         echo "ERROR: glasses-only mode needs glasses + laptop" >&2; exit 1; }
@@ -223,6 +247,7 @@ Usage: $0 <mode>
 
   extend          Philips (portrait) + Laptop + Glasses (right of Philips)
   desk            Philips (portrait) + Laptop (+ 2nd external if connected)
+  home            External (landscape, top) + Laptop (bottom), horizontally centered
   glasses-only    Glasses (top) + Laptop (bottom)
   status          Show the current layout from hyprctl
 
@@ -237,6 +262,7 @@ main() {
     case "${1:-}" in
         extend)        report; mode_extend ;;
         desk)          report; mode_desk ;;
+        home)          report; mode_home ;;
         glasses-only)  report; mode_glasses_only ;;
         status)        status; return ;;
         ""|-h|--help)  usage; exit 0 ;;

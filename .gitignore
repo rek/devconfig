@@ -1,2 +1,3 @@
 .config/btop/btop.log
 .config/btop/*.log
+.config/hypr/monitors-runtime.conf

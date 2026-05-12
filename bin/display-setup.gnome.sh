@@ -36,7 +36,7 @@
 # dark. They remain "logically active" in GetCurrentState with the correct
 # modes, but the physical panels get no signal. Calling --disable /
 # --disable-external does NOT restore them — the only recovery is to
-# re-apply a mutter layout via D-Bus (e.g. `./xreal-setup.sh desk`, which
+# re-apply a mutter layout via D-Bus (e.g. `./display-setup.gnome.sh desk`, which
 # usually needs one Philips+laptop-only apply first to kick the DRM outputs
 # awake, then a second apply to add the glasses back).
 #

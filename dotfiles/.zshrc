@@ -6,10 +6,16 @@ compinit
 # OPENSPEC:END
 
 # Auto-start zellij (replaced byobu)
-# Only auto-attach when opening a fresh terminal — skip in VS Code, Guake, ddterm, embedded terms, or if already inside zellij
+# Only auto-attach when opening a fresh terminal — skip in VS Code, Guake, ddterm, embedded terms, or if already inside zellij.
+# If another terminal is already attached to a zellij session, create a fresh per-terminal session
+# instead of piling onto `default` (so each monitor/window gets its own state).
 _parent_proc=$(ps -p $PPID -o comm= 2>/dev/null)
 if [[ -z "$ZELLIJ" && -z "$ZELLIJ_SESSION_NAME" && "$TERM_PROGRAM" != "vscode" && "$TERM_PROGRAM" != "guake" && -z "$INSIDE_EMACS" && -z "$VIMRUNTIME" && -z "$GUAKE" && "$_parent_proc" != "guake" && -z "$DDTERM" ]]; then
-  exec ~/.local/bin/zellij attach --create default
+  if pgrep -f 'zellij attach' >/dev/null 2>&1; then
+    exec ~/.local/bin/zellij attach --create "term-$$"
+  else
+    exec ~/.local/bin/zellij attach --create default
+  fi
 fi
 unset _parent_proc
 
@@ -89,7 +95,7 @@ export ZSH="/home/adam/.oh-my-zsh"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git kubectl oc zsh-autosuggestions zsh-syntax-highlighting anthropic-peak)
+plugins=(git kubectl oc zsh-autosuggestions zsh-syntax-highlighting)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -190,19 +196,14 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 
-eval "$(direnv hook zsh)"
-
 [ -s "/home/adam/.scm_breeze/scm_breeze.sh" ] && source "/home/adam/.scm_breeze/scm_breeze.sh"
 
 export PATH=$PATH:/usr/local/go/bin
 export LD_LIBRARY_PATH=/usr/lib32/nvidia:/usr/lib/nvidia:$LD_LIBRARY_PATH
 
 # add fuzzy finder
-source /usr/share/doc/fzf/examples/key-bindings.zsh
-source /usr/share/doc/fzf/examples/completion.zsh
-
-# argocd rollouts
-source <(kubectl-argo-rollouts completion zsh)
+source /usr/share/fzf/key-bindings.zsh
+source /usr/share/fzf/completion.zsh
 
 # for beads ai coding tool
 export PATH="$PATH:/home/adam/go/bin"

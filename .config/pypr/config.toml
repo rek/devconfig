@@ -1,0 +1,22 @@
+[pyprland]
+plugins = ["scratchpads"]
+
+[scratchpads.term]
+animation = "fromTop"
+# DDTERM=1 is set via ghostty's -e (per-window command) so it only applies
+# to this dropdown's shell — not to other ghostty windows that share the
+# same process under gtk-single-instance. .zshrc reads DDTERM and skips
+# the auto-attach to zellij so we get a plain shell here with native
+# ghostty tabs (ddterm-style).
+command = "uwsm-app -- ghostty --class=dropdown.term -e env DDTERM=1 zsh"
+class = "dropdown.term"
+size = "100% 45%"
+# margin = gap between the monitor edge the scratchpad animates from and the
+# window itself. With animation = "fromTop", this is the top breathing room.
+margin = 10
+unfocus = "hide"
+# lazy=true: spawn the window on first toggle rather than pre-spawning at
+# pypr startup. With ghostty (GTK), pre-spawning leaves a parked window
+# that pypr has to shuffle between workspaces every toggle — which made
+# the show/hide visibly flash/jump. Lazy spawn is smoother in practice.
+lazy = true

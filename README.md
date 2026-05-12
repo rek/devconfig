@@ -65,11 +65,67 @@ sudo update-alternatives --set x-terminal-emulator /usr/bin/alacritty
 git config --global pager.branch false
 ```
 
-## ddterm (Wayland dropdown terminal)
+## Things to do after installing Arch / Omarchy
 
-Preferred dropdown terminal on Wayland.
+### Dropdown terminal (CapsLock toggle)
 
-Install via GNOME Extension Manager, search `ddterm`.
+CapsLock toggles a ghostty window that slides down from the top, with tabs at
+the bottom (ddterm-style) and no zellij multiplexer.
+
+```bash
+~/dev/devconfig/bin/setup-dropdown-term.sh
+```
+
+This installs `keyd` (remaps CapsLock → F13 at evdev), `pyprland` (scratchpad
+daemon), and `ghostty`. Configs are already symlinked from this repo:
+
+- `.config/pypr/config.toml` — scratchpad geometry and the launch command.
+  Sets `DDTERM=1` so `.zshrc` skips the auto-attach to zellij.
+- `.config/ghostty/config` — `gtk-tabs-location = bottom` and
+  `gtk-single-instance = false` so per-launch env doesn't leak between windows.
+- `.config/hypr/bindings.conf` — binds the F13 keycode (191) to `pypr toggle term`.
+
+### Display setup
+
+```bash
+~/dev/devconfig/bin/display-setup.sh extend          # Philips + Laptop + Glasses
+~/dev/devconfig/bin/display-setup.sh desk            # Philips + Laptop (+ 2nd external)
+~/dev/devconfig/bin/display-setup.sh glasses-only    # Glasses (top) + Laptop (bottom)
+~/dev/devconfig/bin/display-setup.sh status          # Show current layout
+```
+
+Applies via `hyprctl keyword monitor=...` AND persists to
+`~/.config/hypr/monitors-runtime.conf` (sourced from `hyprland.conf`), so the
+layout survives Hyprland config reloads. Auto-detects monitors by name/EDID.
+
+## Parallel Arch / Ubuntu config sets
+
+This repo keeps **both** an Arch/Omarchy/Hyprland version and a Ubuntu/GNOME
+version of every desktop-touching script and config:
+
+| Concern | Arch (default) | Ubuntu / GNOME (`.gnome` suffix) |
+| --- | --- | --- |
+| Dropdown terminal | `bin/setup-dropdown-term.sh` (ghostty + pyprland) | `bin/setup-dropdown-term.gnome.sh` (amezin/ddterm patches in `ddterm/`) |
+| Display setup | `bin/display-setup.sh` (hyprctl) | `bin/display-setup.gnome.sh` + `bin/xreal-apply-triple.gnome.py` (Mutter D-Bus) |
+| Pyprland scratchpad | `.config/pypr/config.toml` | — (ddterm extension handles dropdown on GNOME) |
+| Hyprland | `.config/hypr/*` | — |
+
+The default name targets Arch; the `.gnome.<ext>` suffix targets the prior
+Ubuntu/GNOME setup. (Note: the top-level installers `bin/install.sh` and
+`bin/install-arch.sh` predate this convention and use an inverted naming — the
+dropdown/xreal pattern above is the canonical one going forward.)
+
+## ddterm (GNOME / Ubuntu only)
+
+> Used only on Ubuntu/GNOME. On Arch/Hyprland the dropdown is ghostty
+> via pyprland — see *Things to do after installing Arch / Omarchy* above.
+
+Preferred dropdown terminal on Ubuntu Wayland. Install via GNOME Extension
+Manager, search `ddterm`. Then apply the patches and Claude hooks:
+
+```bash
+~/dev/devconfig/bin/setup-dropdown-term.gnome.sh
+```
 
 ### CapsLock as toggle key
 
@@ -95,7 +151,8 @@ dconf write /com/github/amezin/ddterm/shortcut-prev-tab "['<Primary><Shift>Tab']
 
 ## Guake (X11 / legacy)
 
-> **Deprecated:** prefer ddterm on Wayland.
+> **Deprecated:** prefer ddterm on Ubuntu Wayland, or the ghostty/pyprland
+> dropdown on Arch.
 
 Install: `sudo apt install guake`
 

@@ -1,0 +1,223 @@
+// Synthwave/outrun HUD on transparent layer-shell background.
+// Magenta primary, cyan secondary, near-black panel. GTK CSS subset only.
+
+$magenta: #ff2bd6;
+$magenta-dim: rgba(255, 43, 214, 0.28);
+$cyan: #00fff9;
+$cyan-dim: rgba(0, 255, 249, 0.22);
+$text: #f6e9ff;
+$text-dim: #b58fcf;
+$panel: rgba(8, 4, 22, 0.72);
+
+* {
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", monospace;
+}
+
+.hud {
+  background-color: $panel;
+  border-left: 4px solid $magenta;
+  border-top: 4px solid $magenta;
+  padding: 24px 36px 28px 32px;
+  border-radius: 0 20px 0 0;
+}
+
+// Sibling Claude HUD: same panel, cyan-primary accents to distinguish from OUTRUN.
+.hud.claude {
+  border-left: none;
+  border-right: 4px solid $cyan;
+  border-top: 4px solid $cyan;
+  border-radius: 20px 0 0 0;
+
+  .brand        { color: $cyan;    text-shadow: 0 0 12px $cyan; }
+  .brand-sep    { color: $magenta; }
+  .brand-sub    { color: $magenta; text-shadow: 0 0 8px $magenta; }
+  .clock        { text-shadow: 0 0 20px $cyan; }
+  .date         { color: $magenta; text-shadow: 0 0 8px $magenta; }
+  .label        { color: $cyan;    text-shadow: 0 0 8px $cyan-dim; }
+  .value        { text-shadow: 0 0 12px $magenta; }
+  .bar trough           { background-color: $cyan-dim; border-color: rgba(0, 255, 249, 0.55); }
+  .bar trough progress  { background-color: $magenta; }
+  .value.pct            { color: $cyan; text-shadow: 0 0 8px $cyan-dim; }
+
+  // "SONNET" exceeds the default .label min-width and would shrink its bar;
+  // pin all three rows to the same label/value column widths so the bar
+  // segment starts at a consistent x.
+  .label                { min-width: 130px; }
+  .value                { min-width: 110px; }
+  .value.pct            { min-width: 70px; }
+}
+
+.header {
+  padding: 0 0 4px 0;
+}
+
+.brandrow {
+  padding: 0 0 8px 0;
+}
+
+.brand {
+  color: $magenta;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  text-shadow: 0 0 12px $magenta;
+}
+
+.brand-sep {
+  color: $cyan;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.brand-sub {
+  color: $cyan;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  text-shadow: 0 0 8px $cyan;
+}
+
+.clock {
+  color: $text;
+  font-size: 68px;
+  font-weight: 800;
+  letter-spacing: 8px;
+  text-shadow: 0 0 20px $magenta;
+}
+
+.subrow {
+  padding: 4px 0 8px 0;
+}
+
+.date {
+  color: $cyan;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  text-shadow: 0 0 8px $cyan;
+}
+
+.uptime {
+  color: $text-dim;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+
+.divider {
+  min-height: 2px;
+  background-color: $cyan-dim;
+  margin: 8px 0 12px 0;
+}
+
+.row {
+  padding: 0;
+  margin: 0;
+}
+
+.label {
+  color: $magenta;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  min-width: 72px;
+  text-shadow: 0 0 8px $magenta-dim;
+}
+
+.value {
+  color: $text;
+  font-size: 26px;
+  font-weight: 700;
+  min-width: 192px;
+  text-shadow: 0 0 12px $cyan;
+}
+
+// Progress-bar fill (eww `progress` widget renders as GTK progressbar).
+.bar {
+  min-width: 320px;
+}
+
+.bar trough {
+  min-height: 14px;
+  background-color: $magenta-dim;
+  border: 2px solid rgba(255, 43, 214, 0.55);
+  border-radius: 0;
+}
+
+.bar trough progress {
+  min-height: 14px;
+  background-color: $cyan;
+  border: none;
+  border-radius: 0;
+}
+
+.bar.hidden {
+  min-width: 0;
+  opacity: 0;
+}
+
+// Right-aligned percentage column in claude bar rows.
+.value.pct {
+  min-width: 64px;
+  color: $magenta;
+  text-shadow: 0 0 8px $magenta-dim;
+}
+
+// Launcher panel — clickable button row.
+.launcher {
+  background-color: $panel;
+  border: 2px solid $magenta;
+  border-top-color: $cyan;
+  border-bottom-color: $cyan;
+  border-radius: 12px;
+  padding: 11px 16px 11px 16px;
+}
+
+.launch-btn {
+  background-color: transparent;
+  border: 2px solid $magenta-dim;
+  border-radius: 10px;
+  padding: 9px 14px 8px 14px;
+  min-width: 84px;
+  transition: 120ms;
+}
+
+.launch-btn:hover {
+  background-color: rgba(255, 43, 214, 0.18);
+  border-color: $cyan;
+}
+
+.launch-btn:active {
+  background-color: rgba(0, 255, 249, 0.25);
+}
+
+// Toggled-on state (e.g. nightlight currently active).
+.launch-btn.active {
+  border-color: $cyan;
+  background-color: rgba(0, 255, 249, 0.15);
+}
+
+.launch-btn.active .launch-icon {
+  color: $magenta;
+  text-shadow: 0 0 12px $magenta;
+}
+
+.launch-btn.active .launch-label {
+  color: $cyan;
+  text-shadow: 0 0 6px $cyan;
+}
+
+.launch-icon {
+  color: $cyan;
+  font-size: 28px;
+  font-weight: 700;
+  text-shadow: 0 0 8px $cyan;
+}
+
+.launch-label {
+  color: $magenta;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-shadow: 0 0 5px $magenta;
+}

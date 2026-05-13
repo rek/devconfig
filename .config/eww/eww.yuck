@@ -1,0 +1,164 @@
+; Sci-fi stats HUD: clock header + CPU/RAM/temp/DL/UL rows.
+; Anchored bottom-left of the laptop monitor on the background layer
+; (sits below windows). Synthwave/outrun palette lives in eww.scss.
+
+(defpoll clock-time :interval "1s" :initial "--:--:--"
+  "date '+%H:%M:%S'")
+
+(defpoll clock-date :interval "60s" :initial ""
+  "date '+%a %b %d  %Y'")
+
+(defpoll uptime :interval "30s" :initial ""
+  "uptime -p | sed 's/^up //'")
+
+(defpoll cpu :interval "2s" :initial "0"
+  "~/.config/eww/scripts/cpu.sh")
+
+(defpoll ram :interval "2s" :initial "0"
+  "free | awk '/Mem:/ {printf \"%.0f\", $3/$2 * 100}'")
+
+(defpoll temp :interval "3s" :initial "--"
+  "~/.config/eww/scripts/cpu-temp.sh")
+
+(defpoll dl :interval "1s" :initial "0.00"
+  "~/.config/eww/scripts/net-dl.sh 1")
+
+(defpoll ul :interval "1s" :initial "0.00"
+  "~/.config/eww/scripts/net-ul.sh 1")
+
+; Claude Code usage for the active 5h block. Sourced from raw transcripts in
+; ~/.claude/projects/*/*.jsonl (no API-cost figures — those would be plan
+; tokens × public API rates, not actual billing). Bar denominators are set in
+; the script via CC_LIMIT_* env vars / constants.
+(defpoll cc-state :interval "20s" :initial "IDLE"
+  "~/.config/eww/scripts/claude-usage.sh state")
+(defpoll cc-balance :interval "20s" :initial "--"
+  "~/.config/eww/scripts/claude-usage.sh balance")
+(defpoll cc-remaining :interval "20s" :initial "--"
+  "~/.config/eww/scripts/claude-usage.sh remaining")
+(defpoll cc-sonnet :interval "20s" :initial "0"
+  "~/.config/eww/scripts/claude-usage.sh sonnet")
+(defpoll cc-sonnet-pct :interval "20s" :initial "0"
+  "~/.config/eww/scripts/claude-usage.sh sonnet-pct")
+(defpoll cc-all :interval "20s" :initial "0"
+  "~/.config/eww/scripts/claude-usage.sh all")
+(defpoll cc-all-pct :interval "20s" :initial "0"
+  "~/.config/eww/scripts/claude-usage.sh all-pct")
+(defpoll cc-session :interval "20s" :initial "0"
+  "~/.config/eww/scripts/claude-usage.sh session")
+(defpoll cc-session-pct :interval "20s" :initial "0"
+  "~/.config/eww/scripts/claude-usage.sh session-pct")
+(defpoll cc-session-reset :interval "30s" :initial "--"
+  "~/.config/eww/scripts/claude-usage.sh session-reset")
+
+(defwidget header []
+  (box :class "header" :orientation "v" :space-evenly false :spacing 4
+    (box :class "brandrow" :orientation "h" :space-evenly false :spacing 20
+      (label :class "brand" :text "◢ OUTRUN")
+      (label :class "brand-sep" :text "//")
+      (label :class "brand-sub" :text "SYS NOMINAL"))
+    (label :class "clock" :text clock-time :halign "start")
+    (box :class "subrow" :orientation "h" :space-evenly false :spacing 28
+      (label :class "date" :text clock-date)
+      (label :class "uptime" :text "▲ ${uptime}"))))
+
+(defwidget row [lbl val ?suffix ?bar]
+  (box :class "row" :orientation "h" :space-evenly false :spacing 28
+    (label :class "label" :text lbl :halign "start")
+    (label :class "value" :text "${val}${suffix ?: ""}" :halign "start")
+    (progress :class {bar == "true" ? "bar" : "bar hidden"}
+              :value {bar == "true" ? val : 0} :max 100
+              :hexpand true :valign "center")))
+
+(defwidget hud []
+  (box :class "hud" :orientation "v" :space-evenly false :spacing 12
+    (header)
+    (box :class "divider")
+    (row :lbl "CPU" :val cpu :suffix "%"    :bar "true")
+    (row :lbl "RAM" :val ram :suffix "%"    :bar "true")
+    (row :lbl "TMP" :val temp :suffix "°C"  :bar "false")
+    (row :lbl "DL"  :val dl  :suffix " MB/s" :bar "false")
+    (row :lbl "UL"  :val ul  :suffix " MB/s" :bar "false")))
+
+(defwindow stats-hud
+  :monitor "eDP-2"
+  :stacking "bottom"
+  :exclusive false
+  :focusable false
+  :geometry (geometry :x "24px" :y "24px"
+                      :anchor "bottom left")
+  (hud))
+
+; Bar driven by an explicit pct (0..100) instead of by the value itself.
+(defwidget bar-row [lbl val pct]
+  (box :class "row" :orientation "h" :space-evenly false :spacing 22
+    (label :class "label" :text lbl :halign "start")
+    (label :class "value" :text val :halign "start")
+    (label :class "value pct" :text "${pct}%" :halign "start")
+    (progress :class "bar" :value pct :max 100 :hexpand true :valign "center")))
+
+(defwidget claude-hud []
+  (box :class "hud claude" :orientation "v" :space-evenly false :spacing 12
+    (box :class "header" :orientation "v" :space-evenly false :spacing 4
+      (box :class "brandrow" :orientation "h" :space-evenly false :spacing 20
+        (label :class "brand" :text "◢ CLAUDE")
+        (label :class "brand-sep" :text "//")
+        (label :class "brand-sub" :text cc-state))
+      (label :class "clock" :text cc-balance :halign "start")
+      (box :class "subrow" :orientation "h" :space-evenly false :spacing 12
+        (label :class "uptime" :text "weekly limit" :halign "start")
+        (label :class "date" :text "▲ ${cc-remaining}" :halign "end" :hexpand true))
+      (box :class "subrow" :orientation "h" :space-evenly false :spacing 12
+        (label :class "uptime" :text "current session" :halign "start")
+        (label :class "date" :text "▲ ${cc-session-reset}" :halign "end" :hexpand true)))
+    (box :class "divider")
+    (bar-row :lbl "NOW"    :val cc-session :pct cc-session-pct)
+    (bar-row :lbl "ALL"    :val cc-all     :pct cc-all-pct)
+    (bar-row :lbl "SONNET" :val cc-sonnet  :pct cc-sonnet-pct)))
+
+(defwindow claude-hud
+  :monitor "eDP-2"
+  :stacking "bottom"
+  :exclusive false
+  :focusable false
+  :geometry (geometry :x "24px" :y "24px"
+                      :anchor "bottom right")
+  (claude-hud))
+
+; Launcher panel. Lives on the foreground layer so clicks register.
+; Keep it small and out of the way; the read-only HUDs stay on the bg layer.
+(defwidget launch-btn [icon lbl cmd ?active]
+  (button :class {active == "on" ? "launch-btn active" : "launch-btn"}
+          :onclick cmd
+    (box :orientation "v" :space-evenly false :spacing 2
+      (label :class "launch-icon" :text icon)
+      (label :class "launch-label" :text lbl))))
+
+; Polled state for buttons that toggle persistent settings.
+(defpoll nightlight-state :interval "3s" :initial "off"
+  "~/.config/eww/scripts/nightlight-state.sh")
+
+(defwidget launcher []
+  (box :class "launcher" :orientation "h" :space-evenly false :spacing 14
+    (launch-btn :icon "" :lbl "FILES"
+                :cmd "~/.config/eww/scripts/launch.sh uwsm-app -- nautilus --new-window")
+    (launch-btn :icon "" :lbl "LOCK"
+                :cmd "~/.config/eww/scripts/launch.sh omarchy system lock")
+    (launch-btn :icon "" :lbl "SHOT"
+                :cmd "~/.config/eww/scripts/launch.sh omarchy capture screenshot")
+    (launch-btn :icon "" :lbl "SLEEP"
+                :cmd "~/.config/eww/scripts/launch.sh systemctl suspend")
+    (launch-btn :icon "" :lbl "NIGHT"
+                :active nightlight-state
+                :cmd "~/.config/eww/scripts/launch.sh omarchy toggle nightlight")
+    (launch-btn :icon "" :lbl "THEME"
+                :cmd "~/.config/eww/scripts/launch.sh omarchy theme bg next")))
+
+(defwindow launcher-hud
+  :monitor "eDP-2"
+  :stacking "fg"
+  :exclusive false
+  :focusable false
+  :geometry (geometry :x "0" :y "24px"
+                      :anchor "bottom center")
+  (launcher))

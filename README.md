@@ -5,19 +5,19 @@ my scripts for dev
 
 **Ubuntu:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/bin/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/install/install.sh | bash
 ```
 
 **Arch / Omarchy:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/bin/install-arch.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/install/install-arch.sh | bash
 ```
 
 Or after cloning:
 ```bash
 mkdir -p ~/dev && git clone https://github.com/rek/devconfig.git ~/dev/devconfig
-~/dev/devconfig/bin/install.sh         # Ubuntu
-~/dev/devconfig/bin/install-arch.sh    # Arch / Omarchy
+~/dev/devconfig/install/install.sh         # Ubuntu
+~/dev/devconfig/install/install-arch.sh    # Arch / Omarchy
 ```
 
 The repo is cloned to `~/dev/devconfig` (both the quick-install one-liner and
@@ -42,7 +42,7 @@ See [docs/manual-install.md](docs/manual-install.md).
 ### Dev Config
 
 ```bash
-mkdir -p ~/dev && git clone https://github.com/rek/devconfig.git ~/dev/devconfig && ~/dev/devconfig/bin/install.sh
+mkdir -p ~/dev && git clone https://github.com/rek/devconfig.git ~/dev/devconfig && ~/dev/devconfig/install/install.sh
 ```
 
 ### K8S
@@ -73,7 +73,7 @@ CapsLock toggles a ghostty window that slides down from the top, with tabs at
 the bottom (ddterm-style) and no zellij multiplexer.
 
 ```bash
-~/dev/devconfig/bin/setup-dropdown-term.sh
+~/dev/devconfig/scripts/setup-dropdown-term.sh
 ```
 
 This installs `keyd` (remaps CapsLock → F13 at evdev), `pyprland` (scratchpad
@@ -88,10 +88,10 @@ daemon), and `ghostty`. Configs are already symlinked from this repo:
 ### Display setup
 
 ```bash
-~/dev/devconfig/bin/display-setup.sh extend          # Philips + Laptop + Glasses
-~/dev/devconfig/bin/display-setup.sh desk            # Philips + Laptop (+ 2nd external)
-~/dev/devconfig/bin/display-setup.sh glasses-only    # Glasses (top) + Laptop (bottom)
-~/dev/devconfig/bin/display-setup.sh status          # Show current layout
+~/dev/devconfig/scripts/display-setup.sh extend          # Philips + Laptop + Glasses
+~/dev/devconfig/scripts/display-setup.sh desk            # Philips + Laptop (+ 2nd external)
+~/dev/devconfig/scripts/display-setup.sh glasses-only    # Glasses (top) + Laptop (bottom)
+~/dev/devconfig/scripts/display-setup.sh status          # Show current layout
 ```
 
 Applies via `hyprctl keyword monitor=...` AND persists to
@@ -105,14 +105,14 @@ version of every desktop-touching script and config:
 
 | Concern | Arch (default) | Ubuntu / GNOME (`.gnome` suffix) |
 | --- | --- | --- |
-| Dropdown terminal | `bin/setup-dropdown-term.sh` (ghostty + pyprland) | `bin/setup-dropdown-term.gnome.sh` (amezin/ddterm patches in `ddterm/`) |
-| Display setup | `bin/display-setup.sh` (hyprctl) | `bin/display-setup.gnome.sh` + `bin/xreal-apply-triple.gnome.py` (Mutter D-Bus) |
+| Dropdown terminal | `scripts/setup-dropdown-term.sh` (ghostty + pyprland) | `scripts/setup-dropdown-term.gnome.sh` (amezin/ddterm patches in `ddterm/`) |
+| Display setup | `scripts/display-setup.sh` (hyprctl) | `scripts/display-setup.gnome.sh` + `scripts/xreal-apply-triple.gnome.py` (Mutter D-Bus) |
 | Pyprland scratchpad | `.config/pypr/config.toml` | — (ddterm extension handles dropdown on GNOME) |
 | Hyprland | `.config/hypr/*` | — |
 
 The default name targets Arch; the `.gnome.<ext>` suffix targets the prior
-Ubuntu/GNOME setup. (Note: the top-level installers `bin/install.sh` and
-`bin/install-arch.sh` predate this convention and use an inverted naming — the
+Ubuntu/GNOME setup. (Note: the top-level installers `install/install.sh` and
+`install/install-arch.sh` predate this convention and use an inverted naming — the
 dropdown/xreal pattern above is the canonical one going forward.)
 
 ## ddterm (GNOME / Ubuntu only)
@@ -124,7 +124,7 @@ Preferred dropdown terminal on Ubuntu Wayland. Install via GNOME Extension
 Manager, search `ddterm`. Then apply the patches and Claude hooks:
 
 ```bash
-~/dev/devconfig/bin/setup-dropdown-term.gnome.sh
+~/dev/devconfig/scripts/setup-dropdown-term.gnome.sh
 ```
 
 ### CapsLock as toggle key

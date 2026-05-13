@@ -1,6 +1,6 @@
 #!/bin/bash
 # Ubuntu / GNOME version of the dropdown-term installer.
-# Counterpart of bin/setup-dropdown-term.sh (which is the Arch/Omarchy/Hyprland version).
+# Counterpart of scripts/setup-dropdown-term.sh (which is the Arch/Omarchy/Hyprland version).
 #
 # Installs ddterm (amezin gnome-shell extension) patches and Claude Code hooks
 # - Ctrl+Click on file.tsx:42 patterns in ddterm opens VS Code at that line

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Fresh Ubuntu developer environment setup
-# Usage (one-liner): curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/bin/install.sh | bash
-# Usage (after clone): ./bin/install.sh
+# Usage (one-liner): curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/install/install.sh | bash
+# Usage (after clone): ./install/install.sh
 set -e
 shopt -s nullglob
 
@@ -115,23 +115,38 @@ for d in "$REPO_ROOT"/.config/*/; do
 done
 
 # ---------------------------------------------------------------------------
-# 8. Install zellij
+# 8. Symlink global commands from bin/ into ~/.local/bin (must be on PATH)
+# ---------------------------------------------------------------------------
+header "Symlinking bin/ commands to ~/.local/bin ..."
+mkdir -p "$HOME/.local/bin"
+for f in "$REPO_ROOT"/bin/*; do
+  [ -f "$f" ] || continue
+  target="$HOME/.local/bin/$(basename "$f")"
+  if [ -e "$target" ] && [ ! -L "$target" ]; then
+    echo "Backing up existing $target -> ${target}.bak"
+    mv "$target" "${target}.bak"
+  fi
+  ln -sfn "$f" "$target"
+done
+
+# ---------------------------------------------------------------------------
+# 9. Install zellij
 # ---------------------------------------------------------------------------
 header "Installing zellij..."
 if command -v zellij &>/dev/null || [ -f "$HOME/.local/bin/zellij" ]; then
   echo "zellij already installed, skipping."
 else
-  bash "$REPO_ROOT/bin/install-zellij"
+  bash "$REPO_ROOT/install/install-zellij"
 fi
 
 # ---------------------------------------------------------------------------
-# 9. Set alacritty as default terminal
+# 10. Set alacritty as default terminal
 # ---------------------------------------------------------------------------
 header "Setting alacritty as default terminal..."
 sudo update-alternatives --set x-terminal-emulator /usr/bin/alacritty
 
 # ---------------------------------------------------------------------------
-# 10. kubectx / kubens
+# 11. kubectx / kubens
 # ---------------------------------------------------------------------------
 header "Installing kubectx/kubens..."
 if [ -d "/opt/kubectx" ]; then
@@ -143,13 +158,24 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 11. git config
+# 12. git config
 # ---------------------------------------------------------------------------
 header "Configuring git..."
 git config --global pager.branch false
 
 # ---------------------------------------------------------------------------
-# 12. Set zsh as default shell
+# 13. scm_breeze (numbered shortcuts for `gs` / git staging)
+# ---------------------------------------------------------------------------
+header "Installing scm_breeze..."
+if [ -d "$HOME/.scm_breeze" ]; then
+  echo "scm_breeze already installed, skipping."
+else
+  git clone https://github.com/scmbreeze/scm_breeze.git "$HOME/.scm_breeze"
+  "$HOME/.scm_breeze/install.sh"
+fi
+
+# ---------------------------------------------------------------------------
+# 14. Set zsh as default shell
 # ---------------------------------------------------------------------------
 header "Setting zsh as default shell..."
 if [ "$SHELL" = "$(which zsh)" ]; then

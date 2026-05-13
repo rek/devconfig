@@ -1,6 +1,6 @@
 #!/bin/bash
 # Arch / Omarchy / Hyprland version of the dropdown-term installer.
-# Counterpart of bin/setup-dropdown-term.gnome.sh (Ubuntu / GNOME / ddterm).
+# Counterpart of scripts/setup-dropdown-term.gnome.sh (Ubuntu / GNOME / ddterm).
 #
 # One-shot installer for the CapsLock dropdown terminal on Omarchy.
 #   keyd: remaps CapsLock -> F13 at evdev (Wayland-safe)
@@ -14,7 +14,7 @@
 #   ~/.config/ghostty/config            (gtk-tabs-location=bottom etc.)
 #
 # Run from a real terminal (sudo needs a TTY):
-#   ~/dev/devconfig/bin/setup-dropdown-term.sh
+#   ~/dev/devconfig/scripts/setup-dropdown-term.sh
 set -e
 
 echo "--- Installing keyd + pyprland + ghostty (dropdown terminal)..."

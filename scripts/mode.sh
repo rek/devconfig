@@ -51,6 +51,7 @@ mode_work() {
     "$DISPLAY_SCRIPT" desk
     set_active work
     hyprctl reload >/dev/null
+    eww open pr-hud >/dev/null 2>&1 || true   # work-only HUD
     echo
     echo "Work apps:"
     launch_if_missing vivaldi-stable vivaldi
@@ -64,6 +65,7 @@ mode_home() {
     "$DISPLAY_SCRIPT" home
     set_active home
     hyprctl reload >/dev/null
+    eww close pr-hud >/dev/null 2>&1 || true   # work-only HUD
     echo
     echo "Home apps:"
     launch_if_missing vivaldi-stable vivaldi

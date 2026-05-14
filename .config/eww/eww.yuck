@@ -36,20 +36,12 @@
 ; the script via CC_LIMIT_* env vars / constants.
 (defpoll cc-state :interval "20s" :initial "IDLE"
   "~/.config/eww/scripts/claude-usage.sh state")
-(defpoll cc-balance :interval "20s" :initial "--"
-  "~/.config/eww/scripts/claude-usage.sh balance")
 (defpoll cc-remaining :interval "20s" :initial "--"
   "~/.config/eww/scripts/claude-usage.sh remaining")
-(defpoll cc-sonnet :interval "20s" :initial "0"
-  "~/.config/eww/scripts/claude-usage.sh sonnet")
 (defpoll cc-sonnet-pct :interval "20s" :initial "0"
   "~/.config/eww/scripts/claude-usage.sh sonnet-pct")
-(defpoll cc-all :interval "20s" :initial "0"
-  "~/.config/eww/scripts/claude-usage.sh all")
 (defpoll cc-all-pct :interval "20s" :initial "0"
   "~/.config/eww/scripts/claude-usage.sh all-pct")
-(defpoll cc-session :interval "20s" :initial "0"
-  "~/.config/eww/scripts/claude-usage.sh session")
 (defpoll cc-session-pct :interval "20s" :initial "0"
   "~/.config/eww/scripts/claude-usage.sh session-pct")
 (defpoll cc-session-reset :interval "30s" :initial "--"
@@ -59,6 +51,11 @@
 ; script caches for 10 min and the poll runs on a relaxed interval.
 (defpoll git-heatmap :interval "600s" :initial "[]"
   "~/.config/eww/scripts/git-heatmap.sh")
+
+; Open PRs authored by me on maiella-io/tgt. `gh` hits the API, so the script
+; caches for 5 min.
+(defpoll github-prs :interval "300s" :initial "[]"
+  "~/.config/eww/scripts/github-prs.sh")
 
 (defwidget header []
   (box :class "header" :orientation "v" :space-evenly false :spacing 4
@@ -98,32 +95,31 @@
                       :anchor "bottom left")
   (hud))
 
-; Bar driven by an explicit pct (0..100) instead of by the value itself.
-(defwidget bar-row [lbl val pct]
+; Bar driven by an explicit pct (0..100); shows the percentage, not raw tokens.
+(defwidget bar-row [lbl pct]
   (box :class "row" :orientation "h" :space-evenly false :spacing 22
     (label :class "label" :text lbl :halign "start")
-    (label :class "value" :text val :halign "start")
     (label :class "value pct" :text "${pct}%" :halign "start")
     (progress :class "bar" :value pct :max 100 :hexpand true :valign "center")))
 
 (defwidget claude-hud []
   (box :class "hud claude" :orientation "v" :space-evenly false :spacing 12
-    (box :class "header" :orientation "v" :space-evenly false :spacing 4
-      (box :class "brandrow" :orientation "h" :space-evenly false :spacing 20
-        (label :class "brand" :text "◢ CLAUDE")
-        (label :class "brand-sep" :text "//")
-        (label :class "brand-sub" :text cc-state))
-      (label :class "clock" :text cc-balance :halign "start")
-      (box :class "subrow" :orientation "h" :space-evenly false :spacing 12
-        (label :class "uptime" :text "weekly limit" :halign "start")
-        (label :class "date" :text "▲ ${cc-remaining}" :halign "end" :hexpand true))
-      (box :class "subrow" :orientation "h" :space-evenly false :spacing 12
-        (label :class "uptime" :text "current session" :halign "start")
-        (label :class "date" :text "▲ ${cc-session-reset}" :halign "end" :hexpand true)))
+    (box :class "brandrow" :orientation "h" :space-evenly false :spacing 20
+      (label :class "brand" :text "◢ CLAUDE")
+      (label :class "brand-sep" :text "//")
+      (label :class "brand-sub" :text cc-state))
     (box :class "divider")
-    (bar-row :lbl "NOW"    :val cc-session :pct cc-session-pct)
-    (bar-row :lbl "ALL"    :val cc-all     :pct cc-all-pct)
-    (bar-row :lbl "SONNET" :val cc-sonnet  :pct cc-sonnet-pct)))
+    (label :class "section-title" :text "sessions" :halign "start")
+    (box :class "subrow" :orientation "h" :space-evenly false :spacing 12
+      (label :class "uptime" :text "weekly" :halign "start")
+      (label :class "date" :text "▲ ${cc-remaining}" :halign "end" :hexpand true))
+    (box :class "subrow" :orientation "h" :space-evenly false :spacing 12
+      (label :class "uptime" :text "current" :halign "start")
+      (label :class "date" :text "▲ ${cc-session-reset}" :halign "end" :hexpand true))
+    (box :class "divider")
+    (bar-row :lbl "NOW"    :pct cc-session-pct)
+    (bar-row :lbl "WEEKLY" :pct cc-all-pct)
+    (bar-row :lbl "SONNET" :pct cc-sonnet-pct)))
 
 (defwindow claude-hud
   :monitor "eDP-2"
@@ -139,9 +135,9 @@
 (defwidget launch-btn [icon lbl cmd ?active]
   (button :class {active == "on" ? "launch-btn active" : "launch-btn"}
           :onclick cmd
-    (box :orientation "v" :space-evenly false :spacing 2
-      (label :class "launch-icon" :text icon)
-      (label :class "launch-label" :text lbl))))
+    (box :orientation "v" :space-evenly false :spacing 2 :halign "center"
+      (label :class "launch-icon" :text icon :halign "center")
+      (label :class "launch-label" :text lbl :halign "center"))))
 
 ; Polled state for buttons that toggle persistent settings.
 (defpoll nightlight-state :interval "3s" :initial "off"
@@ -227,3 +223,38 @@
                       :width "100%"
                       :anchor "top center")
   (topbar))
+
+; ── My PRs HUD: open PRs on maiella-io/tgt, click to open in Vivaldi ─────────
+; On the fg layer so the buttons are clickable (same reason as the launcher).
+(defwidget pr-item [pr]
+  (button :class "pr-item"
+          :onclick "~/.config/eww/scripts/launch.sh vivaldi ${pr.url}"
+    (box :orientation "h" :space-evenly false :spacing 8
+      (label :class "pr-num" :text "#${pr.number}")
+      (label :class "pr-title" :text {pr.title} :limit-width 43
+             :halign "start" :hexpand true)
+      (label :class "pr-ci ci-${pr.ci}"
+             :text {pr.ci == "pass"    ? "✓" :
+                    pr.ci == "fail"    ? "✗" :
+                    pr.ci == "pending" ? "●" : "·"}))))
+
+(defwidget pr-hud []
+  (box :class "hud prs" :orientation "v" :space-evenly false :spacing 6
+    (box :class "pr-header" :orientation "h" :space-evenly false
+      (label :class "section-title" :text "◢ MY PRs // tgt" :halign "start" :hexpand true)
+      (button :class "pr-refresh" :onclick "~/.config/eww/scripts/github-prs-refresh.sh"
+        (label :text "")))
+    (box :class "divider")
+    (box :orientation "v" :space-evenly false :spacing 2
+      (for pr in github-prs
+        (pr-item :pr pr)))))
+
+(defwindow pr-hud
+  :monitor "eDP-2"
+  :stacking "fg"
+  :exclusive false
+  :focusable false
+  :geometry (geometry :x "16px" :y "210px"
+                      :width "20%"
+                      :anchor "top left")
+  (pr-hud))

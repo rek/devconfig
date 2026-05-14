@@ -35,22 +35,19 @@ window {
   border-top: 4px solid $cyan;
   border-radius: 20px 0 0 0;
 
-  .brand        { color: $cyan;    text-shadow: 0 0 12px $cyan; }
-  .brand-sep    { color: $magenta; }
-  .brand-sub    { color: $magenta; text-shadow: 0 0 8px $magenta; }
-  .clock        { text-shadow: 0 0 20px $cyan; }
-  .date         { color: $magenta; text-shadow: 0 0 8px $magenta; }
-  .label        { color: $cyan;    text-shadow: 0 0 8px $cyan-dim; }
-  .value        { text-shadow: 0 0 12px $magenta; }
+  .brand         { color: $cyan;    text-shadow: 0 0 12px $cyan; }
+  .brand-sep     { color: $magenta; }
+  .brand-sub     { color: $magenta; text-shadow: 0 0 8px $magenta; }
+  .date          { color: $magenta; text-shadow: 0 0 8px $magenta; }
+  .label         { color: $cyan;    text-shadow: 0 0 8px $cyan-dim; }
+  .section-title { color: $cyan;    text-shadow: 0 0 8px $cyan-dim; }
   .bar trough           { background-color: $cyan-dim; border-color: rgba(0, 255, 249, 0.55); }
   .bar trough progress  { background-color: $magenta; }
   .value.pct            { color: $cyan; text-shadow: 0 0 8px $cyan-dim; }
 
   // "SONNET" exceeds the default .label min-width and would shrink its bar;
-  // pin all three rows to the same label/value column widths so the bar
-  // segment starts at a consistent x.
+  // pin the label/pct columns so the bar segment starts at a consistent x.
   .label                { min-width: 130px; }
-  .value                { min-width: 110px; }
   .value.pct            { min-width: 70px; }
 }
 
@@ -109,6 +106,16 @@ window {
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 4px;
+}
+
+// Small section header (e.g. "sessions" above the reset-timer rows).
+.section-title {
+  color: $magenta;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  margin: 2px 0;
+  text-shadow: 0 0 6px $magenta-dim;
 }
 
 .divider {
@@ -219,6 +226,9 @@ window {
   font-size: 28px;
   font-weight: 700;
   text-shadow: 0 0 8px $cyan;
+  // Font Awesome glyphs carry left-side bearing — centering the advance box
+  // leaves the visible ink sitting right. Nudge left to compensate.
+  margin-right: 6px;
 }
 
 .launch-label {
@@ -298,4 +308,77 @@ $orange: #ff9e00;
 .cell.level-4 {
   background-color: $magenta;
   box-shadow: 0 0 8px $magenta;
+}
+
+// ── My PRs HUD: open PRs on maiella-io/tgt ──────────────────────────────────
+.hud.prs {
+  border: 3px solid $cyan;
+  border-left: 4px solid $magenta;
+  border-top: 4px solid $magenta;
+  border-radius: 14px;
+  padding: 14px 16px 14px 20px;
+}
+
+.pr-item {
+  background-color: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  transition: 120ms;
+}
+
+.pr-item:hover {
+  background-color: rgba(0, 255, 249, 0.15);
+}
+
+.pr-item:active {
+  background-color: rgba(255, 43, 214, 0.22);
+}
+
+.pr-num {
+  color: $cyan;
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: 0 0 6px $cyan-dim;
+}
+
+.pr-title {
+  color: $text;
+  font-size: 14px;
+}
+
+// Rolled-up CI status indicator on the right of each PR row.
+.pr-ci {
+  font-size: 15px;
+  font-weight: 700;
+  min-width: 18px;
+}
+
+.ci-pass    { color: #39ff14; text-shadow: 0 0 6px rgba(57, 255, 20, 0.6); }
+.ci-fail    { color: #ff3355; text-shadow: 0 0 6px rgba(255, 51, 85, 0.6); }
+.ci-pending { color: #ffcc00; text-shadow: 0 0 6px rgba(255, 204, 0, 0.6); }
+.ci-none    { color: $text-dim; }
+
+.pr-header {
+  margin-bottom: 2px;
+}
+
+.pr-refresh {
+  background-color: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 2px 7px;
+  color: $cyan;
+  font-size: 14px;
+  text-shadow: 0 0 6px $cyan-dim;
+  transition: 120ms;
+}
+
+.pr-refresh:hover {
+  background-color: rgba(0, 255, 249, 0.18);
+  color: $magenta;
+}
+
+.pr-refresh:active {
+  background-color: rgba(255, 43, 214, 0.22);
 }

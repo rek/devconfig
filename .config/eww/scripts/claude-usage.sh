@@ -4,13 +4,13 @@
 # at 0.1× — matches what /status shows).
 #
 # Three buckets:
-#   SONNET = 7-day rolling, sonnet models only
-#   ALL    = 7-day rolling, all models  (matches "All models" in /status)
-#   NOW    = the active 5-hour block (matches "Current session" in /status)
+#   SONNET = since the weekly reset, sonnet models only
+#   WEEKLY = since the weekly reset, all models  (matches "All models" in the UI)
+#   NOW    = the active 5-hour block (matches "Current session" in the UI)
 #
-# 5h blocks: anchored at the *top of the hour* of the first activity after the
-# previous block ended; each block runs for 5 hours. This matches ccusage's and
-# (best-effort) Anthropic's convention.
+# 5h blocks: anchored at the first activity timestamp after the previous block
+# ended; each block runs for exactly 5 hours from that point. Matches what the
+# Claude usage UI shows for "Current session" reset time.
 #
 # Caps come from env vars. Defaults calibrated for default_claude_max_5x;
 # adjust until the bars match /status.
@@ -25,11 +25,10 @@ from pathlib import Path
 
 LIMITS = {
     'sonnet':  int(os.environ.get('CC_LIMIT_SONNET_WEEKLY', 270_000_000)),
-    'all':     int(os.environ.get('CC_LIMIT_ALL_WEEKLY',    270_000_000)),
-    'session': int(os.environ.get('CC_LIMIT_SESSION_5H',     40_000_000)),
+    'all':     int(os.environ.get('CC_LIMIT_ALL_WEEKLY',    385_000_000)),
+    'session': int(os.environ.get('CC_LIMIT_SESSION_5H',     46_000_000)),
 }
 RESET_ANCHOR = os.environ.get('CC_WEEKLY_RESET', 'TUE 08:44')
-WEEK_DAYS = 7
 BLOCK = timedelta(hours=5)
 
 field = sys.argv[1]
@@ -70,35 +69,6 @@ def fmt(n):
 now = datetime.now(timezone.utc)
 events = sorted(collect(), key=lambda e: e[0])
 
-# ---- weekly aggregates ----
-week_start = now - timedelta(days=WEEK_DAYS)
-sonnet_wk = 0
-all_wk = 0
-for ts, model, t in events:
-    if ts >= week_start:
-        all_wk += t
-        if 'sonnet' in (model or '').lower():
-            sonnet_wk += t
-
-# ---- active 5h block (top-of-hour anchored) ----
-block_start = block_end = None
-block_tok = 0
-for ts, _, t in events:
-    if block_start is None or ts >= block_end:
-        block_start = ts.replace(minute=0, second=0, microsecond=0)
-        block_end = block_start + BLOCK
-        block_tok = t
-    else:
-        block_tok += t
-# If the latest block has already expired, there's no active session.
-if block_end is not None and now >= block_end:
-    block_start = block_end = None
-    block_tok = 0
-
-def pct(val, key):
-    cap = LIMITS[key]
-    return min(100, int(val / cap * 100)) if cap else 0
-
 def next_weekly_reset():
     DOW = {'MON':0,'TUE':1,'WED':2,'THU':3,'FRI':4,'SAT':5,'SUN':6}
     parts = RESET_ANCHOR.upper().split()
@@ -114,6 +84,35 @@ def next_weekly_reset():
     if cand <= local_now:
         cand += timedelta(days=7)
     return cand.astimezone(timezone.utc)
+
+# ---- weekly aggregates (since the last weekly reset, matching the usage UI) ----
+week_start = next_weekly_reset() - timedelta(days=7)
+sonnet_wk = 0
+all_wk = 0
+for ts, model, t in events:
+    if ts >= week_start:
+        all_wk += t
+        if 'sonnet' in (model or '').lower():
+            sonnet_wk += t
+
+# ---- active 5h block (anchored at first activity timestamp) ----
+block_start = block_end = None
+block_tok = 0
+for ts, _, t in events:
+    if block_start is None or ts >= block_end:
+        block_start = ts
+        block_end = block_start + BLOCK
+        block_tok = t
+    else:
+        block_tok += t
+# If the latest block has already expired, there's no active session.
+if block_end is not None and now >= block_end:
+    block_start = block_end = None
+    block_tok = 0
+
+def pct(val, key):
+    cap = LIMITS[key]
+    return min(100, int(val / cap * 100)) if cap else 0
 
 def fmt_remaining(secs):
     secs = max(0, int(secs))

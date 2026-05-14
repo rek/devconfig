@@ -1,3 +1,9 @@
 .config/btop/btop.log
 .config/btop/*.log
 .config/hypr/monitors-runtime.conf
+
+# Claude Code per-machine settings (permission allowlist etc.)
+.claude/settings.local.json
+
+# Editor/tool backup files
+*.bak

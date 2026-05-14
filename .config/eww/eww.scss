@@ -382,3 +382,19 @@ $orange: #ff9e00;
 .pr-refresh:active {
   background-color: rgba(255, 43, 214, 0.22);
 }
+
+.pr-toggle {
+  background-color: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 14px;
+  transition: 120ms;
+}
+
+.pr-toggle.on  { color: $cyan;     text-shadow: 0 0 6px $cyan-dim; }
+.pr-toggle.off { color: $text-dim; }
+
+.pr-toggle:hover {
+  background-color: rgba(0, 255, 249, 0.18);
+}

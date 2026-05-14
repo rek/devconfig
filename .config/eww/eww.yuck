@@ -52,9 +52,14 @@
 (defpoll git-heatmap :interval "600s" :initial "[]"
   "~/.config/eww/scripts/git-heatmap.sh")
 
-; Open PRs authored by me on maiella-io/tgt. `gh` hits the API, so the script
-; caches for 5 min.
-(defpoll github-prs :interval "300s" :initial "[]"
+; PR HUD watch toggle ("on" | "off"), persisted to a state file so it survives
+; eww reloads. When off, the HUD collapses and PR polling stops.
+(defpoll pr-watch :interval "2s" :initial "on"
+  "cat ~/.local/state/eww-pr-watch 2>/dev/null || echo on")
+
+; Open PRs authored by me on maiella-io/tgt. Polls every minute while watching;
+; `:run-while` stops it entirely when the HUD is toggled off.
+(defpoll github-prs :interval "60s" :initial "[]" :run-while {pr-watch == "on"}
   "~/.config/eww/scripts/github-prs.sh")
 
 (defwidget header []
@@ -240,12 +245,16 @@
 
 (defwidget pr-hud []
   (box :class "hud prs" :orientation "v" :space-evenly false :spacing 6
-    (box :class "pr-header" :orientation "h" :space-evenly false
+    (box :class "pr-header" :orientation "h" :space-evenly false :spacing 6
       (label :class "section-title" :text "◢ MY PRs // tgt" :halign "start" :hexpand true)
-      (button :class "pr-refresh" :onclick "~/.config/eww/scripts/github-prs-refresh.sh"
-        (label :text "")))
-    (box :class "divider")
-    (box :orientation "v" :space-evenly false :spacing 2
+      (button :class "pr-refresh" :visible {pr-watch == "on"}
+              :onclick "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/github-prs-refresh.sh"
+        (label :text ""))
+      (button :class "pr-toggle ${pr-watch}"
+              :onclick "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/pr-watch-toggle.sh"
+        (label :text {pr-watch == "on" ? "" : ""})))
+    (box :class "divider" :visible {pr-watch == "on"})
+    (box :orientation "v" :space-evenly false :spacing 2 :visible {pr-watch == "on"}
       (for pr in github-prs
         (pr-item :pr pr)))))
 

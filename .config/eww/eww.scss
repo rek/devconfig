@@ -7,14 +7,21 @@ $cyan: #00fff9;
 $cyan-dim: rgba(0, 255, 249, 0.22);
 $text: #f6e9ff;
 $text-dim: #b58fcf;
-$panel: rgba(8, 4, 22, 0.72);
+$panel: rgba(8, 4, 22, 0.72);       // opaque-ish — used for the clickable launcher
+$panel-dim: rgba(8, 4, 22, 0.40);   // more transparent — read-only HUDs
 
 * {
   font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", "Fira Code", monospace;
 }
 
+// GTK paints an opaque window background by default — without this, panel
+// rgba() alpha composites over the opaque root instead of the wallpaper.
+window {
+  background-color: transparent;
+}
+
 .hud {
-  background-color: $panel;
+  background-color: $panel-dim;
   border-left: 4px solid $magenta;
   border-top: 4px solid $magenta;
   padding: 24px 36px 28px 32px;
@@ -220,4 +227,75 @@ $panel: rgba(8, 4, 22, 0.72);
   font-weight: 700;
   letter-spacing: 3px;
   text-shadow: 0 0 5px $magenta;
+}
+
+// ── Top HUD: CPU/RAM/GPU sparklines + git commit heatmap ────────────────────
+$orange: #ff9e00;
+
+.topbar {
+  background-color: $panel-dim;
+  border: 3px solid $cyan;
+  border-bottom: 4px solid $magenta;
+  border-radius: 14px;
+  margin: 10px 16px;
+  padding: 14px 40px 16px 40px;
+}
+
+// ~35% of the 2560px laptop panel — sparks hold this width, heatmap sits right.
+.sparks {
+  min-width: 896px;
+}
+
+.spark {
+  min-height: 96px;
+}
+
+.spark-label {
+  color: $magenta;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-shadow: 0 0 8px $magenta-dim;
+}
+
+// eww `graph` draws with the CSS `color`; size comes from min-width/height.
+.spark-graph {
+  min-width: 240px;
+  min-height: 72px;
+}
+
+.spark-graph.cpu { color: $magenta; }
+.spark-graph.ram { color: $cyan; }
+.spark-graph.gpu { color: $orange; }
+
+.divider-v {
+  min-width: 2px;
+  background-color: $cyan-dim;
+  margin: 4px 8px;
+}
+
+.heatmap-title {
+  color: $cyan;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-shadow: 0 0 8px $cyan;
+}
+
+.cell {
+  min-width: 14px;
+  min-height: 14px;
+  border-radius: 3px;
+  background-color: rgba(255, 43, 214, 0.06);
+}
+
+.cell.level-1 { background-color: rgba(255, 43, 214, 0.28); }
+.cell.level-2 { background-color: rgba(255, 43, 214, 0.55); }
+.cell.level-3 {
+  background-color: rgba(255, 43, 214, 0.82);
+  box-shadow: 0 0 4px $magenta-dim;
+}
+.cell.level-4 {
+  background-color: $magenta;
+  box-shadow: 0 0 8px $magenta;
 }

@@ -393,7 +393,7 @@ default_mode "normal"
 // copy_command "xclip -selection clipboard" // x11
 // copy_command "wl-copy"                    // wayland
 // copy_command "pbcopy"                     // osx
-//
+// 
 copy_command "wl-copy"
  
 // Choose the destination for copied text
@@ -532,7 +532,7 @@ support_kitty_keyboard_protocol false
 // Whether to show tips on startup
 // Default: true
 // 
-// show_startup_tips false
+show_startup_tips false
  
 // Whether to show release notes on first version run
 // Default: true

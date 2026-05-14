@@ -163,10 +163,16 @@ export INFOPATH="$HOME/.linuxbrew/share/info:$INFOPATH"
 export PATH="/home/adam/.crc/bin/oc:$PATH"
 export PATH="$HOME/.crc/bin/oc:$PATH"
 
-# Andriod studio
-export ANDROID_HOME=$HOME/Android/Sdk
+# Java (Arch's archlinux-java default — currently JDK 21)
+export JAVA_HOME=/usr/lib/jvm/default
+
+# Android SDK (installed via AUR at /opt/android-sdk)
+export ANDROID_HOME=/opt/android-sdk
+export ANDROID_SDK_ROOT=$ANDROID_HOME
+export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865
 export PATH=$PATH:$ANDROID_HOME/emulator
 export PATH=$PATH:$ANDROID_HOME/platform-tools
+export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
 
 export PATH=$PATH:/home/adam/bin
 

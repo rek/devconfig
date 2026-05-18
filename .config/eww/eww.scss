@@ -239,6 +239,74 @@ window {
   text-shadow: 0 0 5px $magenta;
 }
 
+// Tiny always-on-top toggle in the launcher's top-right corner.
+.launcher-pin {
+  background-color: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 2px 6px;
+  margin: 8px 8px 0 0;
+  font-size: 11px;
+  transition: 120ms;
+}
+
+.launcher-pin.on  { color: $magenta; text-shadow: 0 0 6px rgba(255, 43, 214, 0.6); }
+.launcher-pin.off { color: $text-dim; }
+
+.launcher-pin:hover {
+  background-color: rgba(255, 43, 214, 0.18);
+}
+
+// ── Dropdown-terminal monitor toggle (tiny segmented slider above Claude HUD)
+.ddterm-box {
+  background-color: $panel;
+  border: 2px solid $cyan;
+  border-top-color: $magenta;
+  border-bottom-color: $magenta;
+  border-radius: 10px;
+  padding: 4px 8px;
+}
+
+.ddterm-prefix {
+  color: $magenta;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-shadow: 0 0 5px $magenta-dim;
+  margin: 0 6px 0 2px;
+}
+
+.ddterm-seg {
+  background-color: transparent;
+  border: 1px solid $magenta-dim;
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin: 0 2px;
+  transition: 120ms;
+}
+
+.ddterm-seg:hover {
+  background-color: rgba(255, 43, 214, 0.18);
+  border-color: $cyan;
+}
+
+.ddterm-seg.active {
+  background-color: rgba(0, 255, 249, 0.18);
+  border-color: $cyan;
+}
+
+.ddterm-seg-label {
+  color: $text-dim;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.ddterm-seg.active .ddterm-seg-label {
+  color: $cyan;
+  text-shadow: 0 0 5px $cyan;
+}
+
 // ── Top HUD: CPU/RAM/GPU sparklines + git commit heatmap ────────────────────
 $orange: #ff9e00;
 
@@ -363,6 +431,9 @@ $orange: #ff9e00;
   margin-bottom: 2px;
 }
 
+// Pull the button cluster (refresh / pin / visibility) in from the right edge.
+.pr-toggle { margin-right: 6px; }
+
 .pr-refresh {
   background-color: transparent;
   border: none;
@@ -397,4 +468,20 @@ $orange: #ff9e00;
 
 .pr-toggle:hover {
   background-color: rgba(0, 255, 249, 0.18);
+}
+
+.pr-top-toggle {
+  background-color: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 14px;
+  transition: 120ms;
+}
+
+.pr-top-toggle.on  { color: $magenta; text-shadow: 0 0 6px rgba(255, 43, 214, 0.6); }
+.pr-top-toggle.off { color: $text-dim; }
+
+.pr-top-toggle:hover {
+  background-color: rgba(255, 43, 214, 0.18);
 }

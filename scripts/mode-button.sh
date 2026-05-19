@@ -6,13 +6,18 @@
 # For mode <work|home>:
 #   1. Persist the mode for the eww highlight (state file + eww update for
 #      instant feedback — the defpoll re-reads the file on its next tick).
-#   2. Activate the matching hypr/modes/<mode>.conf via the current.conf
-#      symlink, then `hyprctl reload` so its windowrules/exec-onces apply.
-#   3. Run display-setup.sh with the layout this mode uses.
-#   4. Re-assert HUD visibility. `hyprctl keyword monitor=…` can drop
-#      layer-shell windows on the reconfigured output; re-opening is
-#      idempotent. pr-hud is work-only.
-#   5. Launch any per-mode apps that aren't already running.
+#   2. Point the hypr/modes/current.conf symlink at the new mode.
+#   3. Run display-setup.sh with the layout this mode uses. This applies
+#      the new monitor layout via `hyprctl keyword monitor=…` AND writes
+#      the new monitors-runtime.conf — both must happen before the reload
+#      below, otherwise reload re-reads the OLD runtime conf and clobbers
+#      the new layout (the "press twice" bug).
+#   4. `hyprctl reload` so the new mode's windowrules/exec-onces apply and
+#      the (already-correct) monitors-runtime.conf is re-confirmed.
+#   5. Re-assert HUD visibility. Both `hyprctl keyword monitor=…` and
+#      reload can drop layer-shell windows; re-opening is idempotent.
+#      pr-hud is work-only.
+#   6. Launch any per-mode apps that aren't already running.
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -28,25 +33,33 @@ case "${1:-}" in
     *)    echo "Usage: $0 <work|home>" >&2; exit 1 ;;
 esac
 
-# Order matters: do the cheap/always-works steps first (state, hypr config,
-# HUDs) so a hardware-dependent display-setup failure (e.g. external not
-# connected) still leaves the user with the right mode + HUDs + windowrules.
-
 # 1. State for the eww WORK/HOME highlight. Push to the live var so the
 #    highlight flips instantly instead of waiting on the 3s poll.
 mkdir -p "$(dirname "$STATE_FILE")"
 echo "$mode" > "$STATE_FILE"
 eww update mode-state="$mode" >/dev/null 2>&1 || true
 
-# 2. Switch the per-mode hypr config (windowrules + exec-once). Without this,
-#    work.conf's `workspace 2 silent, match:class ^Alacritty$` never applies.
+# 2. Switch the per-mode hypr config symlink. The reload that activates its
+#    windowrules/exec-once happens in step 4, AFTER display-setup has
+#    rewritten monitors-runtime.conf.
 [[ -f "$MODES_DIR/$mode.conf" ]] || {
     echo "ERROR: $MODES_DIR/$mode.conf does not exist" >&2; exit 1; }
 ln -sfn "$mode.conf" "$MODES_DIR/current.conf"
+
+# 3. Monitor layout. Applies the new layout via `hyprctl keyword monitor=…`
+#    and writes monitors-runtime.conf so the reload in step 4 picks up the
+#    new layout (not the previous mode's, which used to cause the
+#    "press twice" bug). Non-fatal: if the required external isn't
+#    connected, log and continue — the rest of the mode switch is still
+#    useful, and reload will just re-apply the previous runtime layout.
+"$DISPLAY_SCRIPT" "$layout" || echo "display-setup.sh $layout failed (non-fatal)" >&2
+
+# 4. Reload so the new mode's windowrules/exec-once apply. monitors-runtime.conf
+#    is now correct, so reload won't clobber the layout from step 3.
 hyprctl reload >/dev/null
 
-# 3. HUDs. Always-on set re-asserted (workaround for layer drops on monitor
-#    reconfig); pr-hud follows mode.
+# 5. HUDs. Always-on set re-asserted (workaround for layer drops on monitor
+#    reconfig + reload); pr-hud follows mode.
 eww open-many stats-hud claude-hud top-hud >/dev/null 2>&1 || true
 # launcher-hud has two variants (fg vs overlay layer) — pick by persisted state.
 if [[ "$(cat ~/.local/state/eww-launcher-top 2>/dev/null)" == on ]]; then
@@ -69,12 +82,7 @@ case "$mode" in
         ;;
 esac
 
-# 4. Monitor layout. Layouts persist via ~/.config/hypr/monitors-runtime.conf.
-#    Non-fatal: if the required external isn't connected, log and continue —
-#    the rest of the mode switch is still useful.
-"$DISPLAY_SCRIPT" "$layout" || echo "display-setup.sh $layout failed (non-fatal)" >&2
-
-# 5. Apps. launch_if_missing is idempotent — safe on every click.
+# 6. Apps. launch_if_missing is idempotent — safe on every click.
 has_class() {
     hyprctl clients -j 2>/dev/null \
         | jq -e --arg c "$1" 'any(.class == $c)' >/dev/null 2>&1

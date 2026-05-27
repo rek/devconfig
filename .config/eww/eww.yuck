@@ -216,6 +216,8 @@
                 :cmd "~/.config/eww/scripts/launch.sh omarchy capture screenshot")
     (launch-btn :icon "" :lbl "SLEEP"
                 :cmd "~/.config/eww/scripts/launch.sh systemctl suspend")
+    (launch-btn :icon "" :lbl "BLANK"
+                :cmd "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/display-off.sh")
     (launch-btn :icon "" :lbl "NIGHT"
                 :active nightlight-state
                 :cmd "~/.config/eww/scripts/launch.sh omarchy toggle nightlight")

@@ -52,28 +52,6 @@
 (defpoll git-heatmap :interval "600s" :initial "[]"
   "~/.config/eww/scripts/git-heatmap.sh")
 
-; Current pyprland dropdown-terminal force_monitor, read straight from the
-; toml config so the HUD button always reflects truth. The toggle script
-; (ddterm-toggle-monitor.sh) flips this value and reloads pypr.
-(defpoll ddterm-monitor :interval "3s" :initial "?"
-  "grep -E '^force_monitor' ~/.config/pypr/config.toml | sed -E 's/.*\"(.+)\".*/\\1/'")
-
-; PR HUD watch toggle ("on" | "off"), persisted to a state file so it survives
-; eww reloads. When off, the HUD collapses and PR polling stops.
-(defpoll pr-watch :interval "2s" :initial "on"
-  "cat ~/.local/state/eww-pr-watch 2>/dev/null || echo on")
-
-; PR HUD always-on-top toggle ("on" | "off"). When on, the HUD renders on the
-; overlay layer (above fullscreen windows); off keeps it on the fg layer.
-; Implemented as two sibling windows below — the toggle script swaps them.
-(defpoll pr-top :interval "2s" :initial "off"
-  "cat ~/.local/state/eww-pr-top 2>/dev/null || echo off")
-
-; Open PRs authored by me on maiella-io/tgt. Polls every minute while watching;
-; `:run-while` stops it entirely when the HUD is toggled off.
-(defpoll github-prs :interval "60s" :initial "[]" :run-while {pr-watch == "on"}
-  "~/.config/eww/scripts/github-prs.sh")
-
 (defwidget header []
   (box :class "header" :orientation "v" :space-evenly false :spacing 4
     (box :class "brandrow" :orientation "h" :space-evenly false :spacing 20
@@ -147,33 +125,6 @@
                       :anchor "bottom right")
   (claude-hud))
 
-; Tiny standalone box that sits above the Claude HUD on the same monitor.
-; Single button toggling the pyprland dropdown-terminal's force_monitor
-; between DP-1 and DP-2 — the connector assignment for the Acer drifts,
-; so a one-tap flip is more practical than matching by description.
-; Segmented slider: two pills (DP-1 / DP-2). The active pill is highlighted
-; from the polled ddterm-monitor state; clicking either calls the script with
-; the explicit target, which no-ops if already there.
-(defwidget ddterm-seg [val]
-  (button :class {ddterm-monitor == val ? "ddterm-seg active" : "ddterm-seg"}
-          :onclick "~/.config/eww/scripts/launch.sh ~/.config/hypr/scripts/ddterm-toggle-monitor.sh ${val}"
-    (label :class "ddterm-seg-label" :text val)))
-
-(defwidget ddterm-box []
-  (box :class "ddterm-box" :orientation "h" :space-evenly false :spacing 4
-    (label :class "ddterm-prefix" :text "TERM")
-    (ddterm-seg :val "DP-1")
-    (ddterm-seg :val "DP-2")))
-
-(defwindow ddterm-hud
-  :monitor "eDP-2"
-  :stacking "bottom"
-  :exclusive false
-  :focusable false
-  :geometry (geometry :x "24px" :y "500px"
-                      :anchor "bottom right")
-  (ddterm-box))
-
 ; Launcher panel. Lives on the foreground layer so clicks register.
 ; Keep it small and out of the way; the read-only HUDs stay on the bg layer.
 (defwidget launch-btn [icon lbl cmd ?active]
@@ -206,7 +157,11 @@
                   :cmd "~/.config/eww/scripts/launch.sh ~/dev/devconfig/scripts/mode-button.sh work")
       (launch-btn :icon "" :lbl "HOME"
                   :active {mode-state == "home" ? "on" : "off"}
-                  :cmd "~/.config/eww/scripts/launch.sh ~/dev/devconfig/scripts/mode-button.sh home"))
+                  :cmd "~/.config/eww/scripts/launch.sh ~/dev/devconfig/scripts/mode-button.sh home")
+      (launch-btn :icon "󰓹" :lbl "GLASS"
+                  :cmd "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/display-switch.sh glasses-only")
+      (launch-btn :icon "󰌢" :lbl "LAPTOP"
+                  :cmd "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/display-switch.sh laptop"))
     (box :class "launcher-row" :orientation "h" :space-evenly false :spacing 14
     (launch-btn :icon "" :lbl "FILES"
                 :cmd "~/.config/eww/scripts/launch.sh uwsm-app -- nautilus --new-window")
@@ -291,60 +246,3 @@
                       :width "100%"
                       :anchor "top center")
   (topbar))
-
-; ── My PRs HUD: open PRs on maiella-io/tgt, click to open in Vivaldi ─────────
-; Two variants: `pr-hud` lives on the bottom layer (ambient, like the other
-; HUDs — click-through to windows beneath); `pr-hud-top` lives on the overlay
-; layer (above fullscreen windows; PR links are clickable). The pin toggle in
-; the header swaps between them.
-(defwidget pr-item [pr]
-  (button :class "pr-item"
-          :onclick "~/.config/eww/scripts/launch.sh vivaldi ${pr.url}"
-    (box :orientation "h" :space-evenly false :spacing 8
-      (label :class "pr-num" :text "#${pr.number}")
-      (label :class "pr-title" :text {pr.title} :limit-width 43
-             :halign "start" :hexpand true)
-      (label :class "pr-ci ci-${pr.ci}"
-             :text {pr.ci == "pass"    ? "✓" :
-                    pr.ci == "fail"    ? "✗" :
-                    pr.ci == "pending" ? "●" : "·"}))))
-
-(defwidget pr-hud []
-  (box :class "hud prs" :orientation "v" :space-evenly false :spacing 6
-    (box :class "pr-header" :orientation "h" :space-evenly false :spacing 6
-      (label :class "section-title" :text "◢ MY PRs // tgt" :halign "start" :hexpand true)
-      (button :class "pr-refresh" :visible {pr-watch == "on"}
-              :onclick "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/github-prs-refresh.sh"
-        (label :text ""))
-      (button :class "pr-top-toggle ${pr-top}"
-              :onclick "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/pr-top-toggle.sh"
-        (label :text ""))
-      (button :class "pr-toggle ${pr-watch}"
-              :onclick "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/pr-watch-toggle.sh"
-        (label :text {pr-watch == "on" ? "" : ""})))
-    (box :class "divider" :visible {pr-watch == "on"})
-    (box :orientation "v" :space-evenly false :spacing 2 :visible {pr-watch == "on"}
-      (for pr in github-prs
-        (pr-item :pr pr)))))
-
-(defwindow pr-hud
-  :monitor "eDP-2"
-  :stacking "bottom"
-  :exclusive false
-  :focusable false
-  :geometry (geometry :x "16px" :y "210px"
-                      :width "20%"
-                      :anchor "top left")
-  (pr-hud))
-
-; Same widget, but on the overlay layer so it stays above fullscreen windows
-; and PR links are clickable. The pr-top-toggle script swaps which is open.
-(defwindow pr-hud-top
-  :monitor "eDP-2"
-  :stacking "overlay"
-  :exclusive false
-  :focusable false
-  :geometry (geometry :x "16px" :y "210px"
-                      :width "20%"
-                      :anchor "top left")
-  (pr-hud))

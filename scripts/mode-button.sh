@@ -16,7 +16,6 @@
 #      the (already-correct) monitors-runtime.conf is re-confirmed.
 #   5. Re-assert HUD visibility. Both `hyprctl keyword monitor=…` and
 #      reload can drop layer-shell windows; re-opening is idempotent.
-#      pr-hud is work-only.
 #   6. Launch any per-mode apps that aren't already running.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -59,7 +58,8 @@ ln -sfn "$mode.conf" "$MODES_DIR/current.conf"
 hyprctl reload >/dev/null
 
 # 5. HUDs. Always-on set re-asserted (workaround for layer drops on monitor
-#    reconfig + reload); pr-hud follows mode.
+#    reconfig + reload). The tgt PR HUD now lives in quickshell and reacts to
+#    mode-state.sh on its own, so there's nothing mode-specific to toggle here.
 eww open-many stats-hud claude-hud top-hud >/dev/null 2>&1 || true
 # launcher-hud has two variants (fg vs overlay layer) — pick by persisted state.
 if [[ "$(cat ~/.local/state/eww-launcher-top 2>/dev/null)" == on ]]; then
@@ -67,20 +67,6 @@ if [[ "$(cat ~/.local/state/eww-launcher-top 2>/dev/null)" == on ]]; then
 else
     eww open launcher-hud     >/dev/null 2>&1 || true
 fi
-case "$mode" in
-    work)
-        # pr-hud has two variants (fg vs overlay layer) — pick by persisted state.
-        if [[ "$(cat ~/.local/state/eww-pr-top 2>/dev/null)" == on ]]; then
-            eww open pr-hud-top >/dev/null 2>&1 || true
-        else
-            eww open pr-hud     >/dev/null 2>&1 || true
-        fi
-        ;;
-    home)
-        eww close pr-hud     >/dev/null 2>&1 || true
-        eww close pr-hud-top >/dev/null 2>&1 || true
-        ;;
-esac
 
 # 6. Apps. launch_if_missing is idempotent — safe on every click.
 has_class() {

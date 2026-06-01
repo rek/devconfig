@@ -18,7 +18,50 @@ set -euo pipefail
 
 FIELD="${1:-all}"
 
-exec python3 - "$FIELD" <<'PY'
+# Shared cache. The six eww defpolls all call this script every 20–30s; without
+# a cache each does a full transcript scan (~1s of CPU). Instead the first call
+# in a TTL window does ONE scan, computes EVERY field, and writes them here;
+# the rest are served from this file without spawning python at all.
+CACHE="${XDG_RUNTIME_DIR:-/tmp}/cc-usage.cache"
+LOCK="$CACHE.lock"
+TTL=30
+
+serve_cache() {  # print FIELD from the cache; return 1 if cache/field absent
+  [[ -f "$CACHE" ]] || return 1
+  local line
+  line=$(grep -m1 -F "$FIELD"$'\t' "$CACHE" 2>/dev/null) || return 1
+  printf '%s\n' "${line#*$'\t'}"
+}
+
+# Fresh cache → serve immediately, no python.
+if [[ -f "$CACHE" ]]; then
+  age=$(( $(date +%s) - $(stat -c %Y "$CACHE" 2>/dev/null || echo 0) ))
+  if (( age >= 0 && age < TTL )); then
+    if serve_cache; then exit 0; fi
+  fi
+fi
+
+# Stale/missing cache. The five 20s pollers were started together by the eww
+# daemon, so they fire in lockstep — without a lock they'd all miss at the same
+# instant and launch five concurrent transcript scans every TTL window (the
+# ~200% spikes). Double-checked locking: serialize on fd 9, and once we hold the
+# lock RE-CHECK the cache — a concurrent winner has usually just refreshed it, so
+# the losers serve that fresh value instead of each running their own scan.
+exec 9>"$LOCK"
+if ! flock -w 5 9; then
+  # Couldn't get the lock in time — serve whatever cache exists rather than hang.
+  serve_cache || echo '--'
+  exit 0
+fi
+if [[ -f "$CACHE" ]]; then
+  age=$(( $(date +%s) - $(stat -c %Y "$CACHE" 2>/dev/null || echo 0) ))
+  if (( age >= 0 && age < TTL )); then
+    if serve_cache; then exit 0; fi
+  fi
+fi
+
+# We hold the lock and the cache is genuinely stale — we're the one scan.
+python3 - "$FIELD" "$CACHE" <<'PY'
 import json, os, sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -67,7 +110,6 @@ def fmt(n):
     return str(n)
 
 now = datetime.now(timezone.utc)
-events = sorted(collect(), key=lambda e: e[0])
 
 def next_weekly_reset():
     DOW = {'MON':0,'TUE':1,'WED':2,'THU':3,'FRI':4,'SAT':5,'SUN':6}
@@ -84,6 +126,18 @@ def next_weekly_reset():
     if cand <= local_now:
         cand += timedelta(days=7)
     return cand.astimezone(timezone.utc)
+
+def fmt_remaining(secs):
+    secs = max(0, int(secs))
+    if secs == 0: return '0m'
+    d, rem = divmod(secs, 86400)
+    h, rem = divmod(rem, 3600)
+    m, _ = divmod(rem, 60)
+    if d:    return f'{d}d {h}h'
+    if h:    return f'{h}h {m:02d}m'
+    return f'{m}m'
+
+events = sorted(collect(), key=lambda e: e[0])
 
 # ---- weekly aggregates (since the last weekly reset, matching the usage UI) ----
 week_start = next_weekly_reset() - timedelta(days=7)
@@ -114,31 +168,36 @@ def pct(val, key):
     cap = LIMITS[key]
     return min(100, int(val / cap * 100)) if cap else 0
 
-def fmt_remaining(secs):
-    secs = max(0, int(secs))
-    if secs == 0: return '0m'
-    d, rem = divmod(secs, 86400)
-    h, rem = divmod(rem, 3600)
-    m, _ = divmod(rem, 60)
-    if d:    return f'{d}d {h}h'
-    if h:    return f'{h}h {m:02d}m'
-    return f'{m}m'
+# One scan, every field — so the shared cache lets all six pollers ride a single
+# transcript scan per TTL window instead of each doing its own.
+out = {
+    'state':         'ACTIVE' if block_start else 'IDLE',
+    'remaining':     fmt_remaining((next_weekly_reset() - now).total_seconds()),
+    'progress':      str(pct(all_wk, 'all')),
+    'balance':       fmt(max(0, LIMITS['all'] - all_wk)),
+    'sonnet':        fmt(sonnet_wk),
+    'all':           fmt(all_wk),
+    'session':       fmt(block_tok),
+    'sonnet-pct':    str(pct(sonnet_wk, 'sonnet')),
+    'all-pct':       str(pct(all_wk, 'all')),
+    'session-pct':   str(pct(block_tok, 'session')),
+    'session-reset': '--' if not block_end
+                     else fmt_remaining((block_end - now).total_seconds()),
+}
 
-if field == 'state':
-    print('ACTIVE' if block_start else 'IDLE')
-elif field == 'remaining':
-    print(fmt_remaining((next_weekly_reset() - now).total_seconds()))
-elif field == 'progress':       print(pct(all_wk, 'all'))
-elif field == 'balance':        print(fmt(max(0, LIMITS['all'] - all_wk)))
-elif field == 'sonnet':         print(fmt(sonnet_wk))
-elif field == 'all':            print(fmt(all_wk))
-elif field == 'session':        print(fmt(block_tok))
-elif field == 'sonnet-pct':     print(pct(sonnet_wk, 'sonnet'))
-elif field == 'all-pct':        print(pct(all_wk,    'all'))
-elif field == 'session-pct':    print(pct(block_tok, 'session'))
-elif field == 'session-reset':
-    if not block_end: print('--')
-    else: print(fmt_remaining((block_end - now).total_seconds()))
-else:
-    print('--')
+# Persist the whole field set atomically (write-then-rename) so a concurrent
+# poller never reads a half-written cache. Best-effort: a cache failure must
+# not break the widget, so fall through to printing on any error.
+cache_path = sys.argv[2] if len(sys.argv) > 2 else None
+if cache_path:
+    try:
+        tmp = f'{cache_path}.{os.getpid()}.tmp'
+        with open(tmp, 'w') as f:
+            for k, v in out.items():
+                f.write(f'{k}\t{v}\n')
+        os.replace(tmp, cache_path)
+    except Exception:
+        pass
+
+print(out.get(field, '--'))
 PY

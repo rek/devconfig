@@ -43,7 +43,13 @@ fi
 # 2. pacman packages
 # ---------------------------------------------------------------------------
 header "Installing pacman packages..."
-sudo pacman -S --needed --noconfirm git zsh curl htop btop alacritty wl-clipboard
+sudo pacman -S --needed --noconfirm git zsh curl htop btop alacritty wl-clipboard bluez bluez-utils
+
+# ---------------------------------------------------------------------------
+# 2a. Bluetooth service (needed for A2DP audio sinks to appear in PipeWire)
+# ---------------------------------------------------------------------------
+header "Enabling bluetooth service..."
+sudo systemctl enable --now bluetooth
 
 # ---------------------------------------------------------------------------
 # 3. Devconfig repo location (needed before symlinking dotfiles below)
@@ -185,6 +191,21 @@ else
   git clone https://github.com/scmbreeze/scm_breeze.git "$HOME/.scm_breeze"
   "$HOME/.scm_breeze/install.sh"
 fi
+
+# ---------------------------------------------------------------------------
+# 13a. Symlink /etc/sysctl.d entries (system tuning — needs sudo)
+# ---------------------------------------------------------------------------
+header "Symlinking /etc/sysctl.d configs..."
+for f in "$REPO_ROOT"/etc/sysctl.d/*.conf; do
+  [ -f "$f" ] || continue
+  target="/etc/sysctl.d/$(basename "$f")"
+  if [ -e "$target" ] && [ ! -L "$target" ]; then
+    echo "Backing up existing $target -> ${target}.bak"
+    sudo mv "$target" "${target}.bak"
+  fi
+  sudo ln -sfn "$f" "$target"
+done
+sudo sysctl --system >/dev/null
 
 # ---------------------------------------------------------------------------
 # 14. Set zsh as default shell

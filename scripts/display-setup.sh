@@ -43,7 +43,7 @@ set -euo pipefail
 PHIL_MODE="2560x1440@59.95"
 PHIL_W=2560
 PHIL_H=1440
-XR_MODE="1920x1080"
+XR_MODE="1920x1080@120"
 XR_W=1920
 XR_H=1080
 
@@ -236,6 +236,17 @@ mode_glasses_only() {
     for o in "${OTHERS[@]}"; do disable_monitor "$o"; done
 }
 
+mode_laptop() {
+    [[ -z $LAPTOP ]] && { echo "ERROR: no laptop detected" >&2; exit 1; }
+
+    # Disable secondaries first so the laptop doesn't briefly overlap them at 0x0.
+    [[ -n $GLASSES ]] && disable_monitor "$GLASSES"
+    [[ -n $PHILIPS ]] && disable_monitor "$PHILIPS"
+    for o in "${OTHERS[@]}"; do disable_monitor "$o"; done
+
+    apply "$LAPTOP" "preferred,0x0,1"
+}
+
 status() {
     echo "=== Current display layout ==="
     hyprctl monitors
@@ -249,6 +260,7 @@ Usage: $0 <mode>
   desk            Philips (portrait) + Laptop (+ 2nd external if connected)
   home            External (landscape, top) + Laptop (bottom), horizontally centered
   glasses-only    Glasses (top) + Laptop (bottom)
+  laptop          Laptop only (disables everything else)
   status          Show the current layout from hyprctl
 
 Monitors are auto-detected by connector name (eDP*) and EDID description.
@@ -264,6 +276,7 @@ main() {
         desk)          report; mode_desk ;;
         home)          report; mode_home ;;
         glasses-only)  report; mode_glasses_only ;;
+        laptop)        report; mode_laptop ;;
         status)        status; return ;;
         ""|-h|--help)  usage; exit 0 ;;
         *)             usage; exit 1 ;;

@@ -251,4 +251,12 @@ ShellRoot {
         id: ddterm
     }
 
+    // ============================================================
+    // Steam window rescue button. One click drags off-screen Steam
+    // windows back onto the glasses. Bottom-right of eDP-2, above ddterm.
+    // ============================================================
+    SteamRestore {
+        id: steamRestore
+    }
+
 }

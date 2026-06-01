@@ -202,7 +202,9 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 
-[ -s "/home/adam/.scm_breeze/scm_breeze.sh" ] && source "/home/adam/.scm_breeze/scm_breeze.sh"
+# scm_breeze wraps `git` in a shell function whose helpers don't survive
+# Claude Code's shell snapshot (git switch/checkout/branch break). Skip it there.
+[ -z "$CLAUDECODE" ] && [ -s "/home/adam/.scm_breeze/scm_breeze.sh" ] && source "/home/adam/.scm_breeze/scm_breeze.sh"
 
 export PATH=$PATH:/usr/local/go/bin
 export LD_LIBRARY_PATH=/usr/lib32/nvidia:/usr/lib/nvidia:$LD_LIBRARY_PATH

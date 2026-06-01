@@ -86,7 +86,7 @@ PanelWindow {
 
     Poller {
         id: poll
-        command: "~/dev/qs-prototype/scripts/issues-needs-reply.sh "
+        command: "~/.config/quickshell/scripts/issues-needs-reply.sh "
                  + JSON.stringify(hud.repo)
         interval: 60000
         running: watch.value

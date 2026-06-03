@@ -160,7 +160,7 @@ Item {
         Process {
             id: tabProc
             command: ["bash", "-lc",
-                "$HOME/dev/qs-prototype/scripts/issue-to-claude.sh \"$1\" \"$2\"",
+                "$HOME/.config/quickshell/scripts/issue-to-claude.sh \"$1\" \"$2\"",
                 "_", root.tabName, root.url]
             running: false
         }

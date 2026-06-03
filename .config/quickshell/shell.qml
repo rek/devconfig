@@ -47,12 +47,13 @@ ShellRoot {
         WlrLayershell.layer: pin.value ? WlrLayer.Overlay : WlrLayer.Bottom
         WlrLayershell.namespace: "qs-devtest-stats"
 
-        // Click-through outside the card.
+        // Click-through outside the card. Tracks the flip card so the
+        // clickable region covers it on either face.
         mask: Region {
-            x: card.x
-            y: card.y
-            width: card.width
-            height: card.height
+            x: statsCard.x
+            y: statsCard.y
+            width: statsCard.width
+            height: statsCard.height
         }
 
         // === Metric pollers — same scripts the eww HUD uses. ===
@@ -78,128 +79,136 @@ ShellRoot {
                               : batStatus === "Discharging"        ? " BAT"
                               :                                      ""
 
-        Rectangle {
-            id: card
+        // Stats card. Front shows the metrics; clicking anywhere on it (or a
+        // horizontal drag) turns it over to the settings back. The back's PIN
+        // toggle keeps its own clicks, so the back flips home by drag only.
+        FlipCard {
+            id: statsCard
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: -parent.height * 0.15
             anchors.rightMargin: 24
-            width: 380
-            height: 246
-            radius: 6
-            // ARGB — ~72% alpha over near-black green-tinted backdrop.
-            color: "#b8070b08"
-            border.color: "#00ff88"
-            border.width: 2
+            cardWidth: 380
+            cardHeight: 246
 
-            // --- Header strip: title (left) + LIVE/PIN (right) ---
-            Text {
-                id: title
-                anchors {
-                    top: parent.top
-                    left: parent.left
-                    margins: 14
-                }
-                text: "▌ /sys/proc.metrics"
-                color: "#00ff88"
-                font.family: "JetBrainsMono Nerd Font"
-                font.pixelSize: 13
-                font.bold: true
-            }
-
-            Row {
-                id: headerRight
-                anchors {
-                    top: parent.top
-                    right: parent.right
-                    margins: 14
-                }
-                spacing: 10
+            // ============================================================
+            // FRONT — /sys/proc.metrics
+            // ============================================================
+            front: [
+                Text {
+                    id: title
+                    anchors { top: parent.top; left: parent.left; margins: 14 }
+                    text: "▌ /sys/proc.metrics"
+                    color: "#00ff88"
+                    font.family: "JetBrainsMono Nerd Font"
+                    font.pixelSize: 13
+                    font.bold: true
+                },
 
                 Text {
+                    anchors { top: parent.top; right: parent.right; margins: 14 }
                     text: "● LIVE"
                     color: "#00ff88"
                     font.family: "JetBrainsMono Nerd Font"
                     font.pixelSize: 11
-                    anchors.verticalCenter: parent.verticalCenter
                     SequentialAnimation on opacity {
                         loops: Animation.Infinite
                         NumberAnimation { to: 0.25; duration: 700 }
                         NumberAnimation { to: 1.00; duration: 700 }
                     }
-                }
+                },
 
-                ToggleButton {
-                    id: pin
-                    stateName: "stats-pin"
-                    label: "PIN"
-                    iconOn:  " "
-                    iconOff: " "
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-            }
+                Rectangle {
+                    id: divider
+                    anchors {
+                        top: title.bottom; left: parent.left; right: parent.right
+                        topMargin: 10; leftMargin: 14; rightMargin: 14
+                    }
+                    height: 1
+                    color: "#1a3322"
+                },
 
-            // --- Divider line below the header ---
-            Rectangle {
-                id: divider
-                anchors {
-                    top: title.bottom
-                    left: parent.left
-                    right: parent.right
-                    topMargin: 10
-                    leftMargin: 14
-                    rightMargin: 14
-                }
-                height: 1
-                color: "#1a3322"
-            }
+                Column {
+                    anchors {
+                        top: divider.bottom; left: parent.left; right: parent.right
+                        bottom: parent.bottom
+                        topMargin: 10; leftMargin: 14; rightMargin: 14; bottomMargin: 14
+                    }
+                    spacing: 6
 
-            // --- Stat rows: CPU, RAM, TMP, DL, UL ---
-            Column {
-                anchors {
-                    top: divider.bottom
-                    left: parent.left
-                    right: parent.right
-                    bottom: parent.bottom
-                    topMargin: 10
-                    leftMargin: 14
-                    rightMargin: 14
-                    bottomMargin: 14
+                    StatRow {
+                        label: "CPU"; suffix: "%"
+                        value: (parseInt(cpu.value) || 0).toString()
+                        showBar: true; pct: parseInt(cpu.value) || 0
+                    }
+                    StatRow {
+                        label: "RAM"; suffix: "%"
+                        value: (parseInt(ram.value) || 0).toString()
+                        showBar: true; pct: parseInt(ram.value) || 0
+                    }
+                    StatRow { label: "TMP"; suffix: "°C";    value: tmp.value || "--" }
+                    StatRow { label: "DL";  suffix: " MB/s"; value: dl.value || "0.00" }
+                    StatRow { label: "UL";  suffix: " MB/s"; value: ul.value || "0.00" }
+                    StatRow {
+                        label: "BAT"
+                        suffix: "%" + statsHud.batTag
+                        value: statsHud.batPct.toString()
+                        showBar: true; pct: statsHud.batPct
+                    }
                 }
-                spacing: 6
+            ]
 
-                StatRow {
-                    label: "CPU"; suffix: "%"
-                    value: (parseInt(cpu.value) || 0).toString()
-                    showBar: true
-                    pct: parseInt(cpu.value) || 0
+            // ============================================================
+            // BACK — /sys/proc.settings
+            // ============================================================
+            back: [
+                Text {
+                    id: backTitle
+                    anchors { top: parent.top; left: parent.left; margins: 14 }
+                    text: "▌ /sys/proc.settings"
+                    color: "#00ff88"
+                    font.family: "JetBrainsMono Nerd Font"
+                    font.pixelSize: 13
+                    font.bold: true
+                },
+
+                Rectangle {
+                    id: backDivider
+                    anchors {
+                        top: backTitle.bottom; left: parent.left; right: parent.right
+                        topMargin: 10; leftMargin: 14; rightMargin: 14
+                    }
+                    height: 1
+                    color: "#1a3322"
+                },
+
+                // --- Settings rows. PIN is the only one for now. ---
+                Row {
+                    anchors {
+                        top: backDivider.bottom; left: parent.left
+                        topMargin: 14; leftMargin: 14
+                    }
+                    spacing: 12
+
+                    Text {
+                        text: "PIN ON TOP"
+                        color: "#7fffaf"
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 12
+                        font.bold: true
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    ToggleButton {
+                        id: pin
+                        stateName: "stats-pin"
+                        label: "PIN"
+                        iconOn:  " "
+                        iconOff: " "
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
-                StatRow {
-                    label: "RAM"; suffix: "%"
-                    value: (parseInt(ram.value) || 0).toString()
-                    showBar: true
-                    pct: parseInt(ram.value) || 0
-                }
-                StatRow {
-                    label: "TMP"; suffix: "°C"
-                    value: tmp.value || "--"
-                }
-                StatRow {
-                    label: "DL"; suffix: " MB/s"
-                    value: dl.value || "0.00"
-                }
-                StatRow {
-                    label: "UL"; suffix: " MB/s"
-                    value: ul.value || "0.00"
-                }
-                StatRow {
-                    label: "BAT"
-                    suffix: "%" + statsHud.batTag
-                    value: statsHud.batPct.toString()
-                    showBar: true
-                    pct: statsHud.batPct
-                }
-            }
+            ]
         }
     }
 

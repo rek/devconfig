@@ -74,7 +74,7 @@ PanelWindow {
         // nf-md-restart on press (flash), steam glyph at rest.
         Text {
             anchors.centerIn: parent
-            text: hud.flash ? "" : ""
+            text: hud.flash ? "󰜉" : ""
             color: "#00ff88"
             font.family: "JetBrainsMono Nerd Font"
             font.pixelSize: 20

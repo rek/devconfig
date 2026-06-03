@@ -125,83 +125,9 @@
                       :anchor "bottom right")
   (claude-hud))
 
-; Launcher panel. Lives on the foreground layer so clicks register.
-; Keep it small and out of the way; the read-only HUDs stay on the bg layer.
-(defwidget launch-btn [icon lbl cmd ?active]
-  (button :class {active == "on" ? "launch-btn active" : "launch-btn"}
-          :onclick cmd
-    (box :orientation "v" :space-evenly false :spacing 2 :halign "center"
-      (label :class "launch-icon" :text icon :halign "center")
-      (label :class "launch-label" :text lbl :halign "center"))))
-
-; Polled state for buttons that toggle persistent settings.
-(defpoll nightlight-state :interval "3s" :initial "off"
-  "~/.config/eww/scripts/nightlight-state.sh")
-
-; Active Hyprland mode ("work" | "home" | "none"). Drives WORK/HOME button highlight.
-(defpoll mode-state :interval "3s" :initial "work"
-  "~/.config/eww/scripts/mode-state.sh")
-
-; Launcher always-on-top toggle ("on" | "off"). When on, the launcher renders on
-; the overlay layer (above fullscreen windows); off keeps it on the fg layer.
-; Implemented as two sibling windows below — the toggle script swaps them.
-(defpoll launcher-top :interval "2s" :initial "off"
-  "cat ~/.local/state/eww-launcher-top 2>/dev/null || echo off")
-
-(defwidget launcher []
-  (overlay
-    (box :class "launcher" :orientation "v" :space-evenly false :spacing 10
-    (box :class "launcher-row mode-row" :orientation "h" :halign "center" :space-evenly false :spacing 14
-      (launch-btn :icon "" :lbl "WORK"
-                  :active {mode-state == "work" ? "on" : "off"}
-                  :cmd "~/.config/eww/scripts/launch.sh ~/dev/devconfig/scripts/mode-button.sh work")
-      (launch-btn :icon "" :lbl "HOME"
-                  :active {mode-state == "home" ? "on" : "off"}
-                  :cmd "~/.config/eww/scripts/launch.sh ~/dev/devconfig/scripts/mode-button.sh home")
-      (launch-btn :icon "󰓹" :lbl "GLASS"
-                  :cmd "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/display-switch.sh glasses-only")
-      (launch-btn :icon "󰌢" :lbl "LAPTOP"
-                  :cmd "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/display-switch.sh laptop"))
-    (box :class "launcher-row" :orientation "h" :space-evenly false :spacing 14
-    (launch-btn :icon "" :lbl "FILES"
-                :cmd "~/.config/eww/scripts/launch.sh uwsm-app -- nautilus --new-window")
-    (launch-btn :icon "" :lbl "LOCK"
-                :cmd "~/.config/eww/scripts/launch.sh omarchy system lock")
-    (launch-btn :icon "" :lbl "SHOT"
-                :cmd "~/.config/eww/scripts/launch.sh omarchy capture screenshot")
-    (launch-btn :icon "" :lbl "SLEEP"
-                :cmd "~/.config/eww/scripts/launch.sh systemctl suspend")
-    (launch-btn :icon "" :lbl "BLANK"
-                :cmd "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/display-off.sh")
-    (launch-btn :icon "" :lbl "NIGHT"
-                :active nightlight-state
-                :cmd "~/.config/eww/scripts/launch.sh omarchy toggle nightlight")
-    (launch-btn :icon "" :lbl "THEME"
-                :cmd "~/.config/eww/scripts/launch.sh omarchy theme bg next")))
-    (button :class "launcher-pin ${launcher-top}"
-            :halign "end" :valign "start"
-            :onclick "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/launcher-top-toggle.sh"
-      (label :text ""))))
-
-(defwindow launcher-hud
-  :monitor "eDP-2"
-  :stacking "bottom"
-  :exclusive false
-  :focusable false
-  :geometry (geometry :x "0" :y "24px"
-                      :anchor "bottom center")
-  (launcher))
-
-; Same widget, but on the overlay layer so it sits above fullscreen windows.
-; The launcher-top-toggle script swaps which sibling is open.
-(defwindow launcher-hud-top
-  :monitor "eDP-2"
-  :stacking "overlay"
-  :exclusive false
-  :focusable false
-  :geometry (geometry :x "0" :y "24px"
-                      :anchor "bottom center")
-  (launcher))
+; Launcher moved to quickshell — see .config/quickshell/components/Launcher.qml
+; (synthwave Theme singleton + reusable LaunchButton). The mode-state /
+; nightlight-state / launch.sh scripts it calls still live in scripts/.
 
 ; ── Top HUD: live CPU/RAM/GPU sparklines + git commit heatmap ────────────────
 

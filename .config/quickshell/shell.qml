@@ -259,4 +259,12 @@ ShellRoot {
         id: steamRestore
     }
 
+    // ============================================================
+    // Synthwave launcher — two rows of action buttons, bottom-center of
+    // eDP-2. Replaces the eww launcher; new magenta/cyan Theme singleton.
+    // ============================================================
+    Launcher {
+        id: launcher
+    }
+
 }

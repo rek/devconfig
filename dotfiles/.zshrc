@@ -9,15 +9,23 @@ compinit
 # Only auto-attach when opening a fresh terminal — skip in VS Code, Guake, ddterm, embedded terms, or if already inside zellij.
 # If another terminal is already attached to a zellij session, create a fresh per-terminal session
 # instead of piling onto `default` (so each monitor/window gets its own state).
+# ddterm detection: an env var set only on the ghostty -e launch command (DDTERM=1)
+# doesn't survive new tabs opened natively inside that window (ghostty spawns those
+# tabs' shells fresh, without re-running -e). Ask Hyprland for the current window's
+# class instead — it's true for every tab of the dropdown window, not just the first.
 _parent_proc=$(ps -p $PPID -o comm= 2>/dev/null)
-if [[ -z "$ZELLIJ" && -z "$ZELLIJ_SESSION_NAME" && "$TERM_PROGRAM" != "vscode" && "$TERM_PROGRAM" != "guake" && -z "$INSIDE_EMACS" && -z "$VIMRUNTIME" && -z "$GUAKE" && "$_parent_proc" != "guake" && -z "$DDTERM" ]]; then
+_win_class=""
+if [[ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]]; then
+  _win_class=$(hyprctl activewindow -j 2>/dev/null | jq -r '.class // empty' 2>/dev/null)
+fi
+if [[ -z "$ZELLIJ" && -z "$ZELLIJ_SESSION_NAME" && "$TERM_PROGRAM" != "vscode" && "$TERM_PROGRAM" != "guake" && -z "$INSIDE_EMACS" && -z "$VIMRUNTIME" && -z "$GUAKE" && "$_parent_proc" != "guake" && "$_win_class" != "dropdown.term" ]]; then
   if pgrep -f 'zellij attach' >/dev/null 2>&1; then
     exec ~/.local/bin/zellij attach --create "term-$$"
   else
     exec ~/.local/bin/zellij attach --create default
   fi
 fi
-unset _parent_proc
+unset _parent_proc _win_class
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]

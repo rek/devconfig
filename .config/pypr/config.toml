@@ -3,12 +3,12 @@ plugins = ["scratchpads"]
 
 [scratchpads.term]
 animation = "fromTop"
-# DDTERM=1 is set via ghostty's -e (per-window command) so it only applies
-# to this dropdown's shell — not to other ghostty windows that share the
-# same process under gtk-single-instance. .zshrc reads DDTERM and skips
-# the auto-attach to zellij so we get a plain shell here with native
-# ghostty tabs (ddterm-style).
-command = "uwsm-app -- ghostty --class=dropdown.term -e env DDTERM=1 zsh"
+# .zshrc checks the focused window's Hyprland class (dropdown.term) and skips
+# the auto-attach to zellij for it, so we get a plain shell here with native
+# ghostty tabs (ddterm-style). That check works per-tab; an env var passed via
+# -e here would not (ghostty doesn't re-run -e for tabs opened natively in an
+# already-running window under gtk-single-instance).
+command = "uwsm-app -- ghostty --class=dropdown.term"
 class = "dropdown.term"
 size = "100% 45%"
 # margin = gap between the monitor edge the scratchpad animates from and the

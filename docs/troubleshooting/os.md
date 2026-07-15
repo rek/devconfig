@@ -122,3 +122,83 @@ None — system just cold-boots. Any unsaved work in the suspended session is lo
    ```
 3. Update the bootloader entry's `resume_offset=` to match, and regenerate (`limine-update` / `grub-mkconfig` / etc.).
 4. Re-verify after any large btrfs operation (balance, defrag).
+
+---
+
+## minidlna: "Media directory not accessible [Permission denied]" (on `orek`)
+
+**Symptom**
+
+minidlna (DLNA server, media on the EXT4 external drive) fails to index after a
+reboot or every time the drive is re-plugged. Journal shows:
+
+```
+minidlnad[...]: error: Media directory "/run/media/adam/9b5330ad-.../media" not accessible [Permission denied]
+```
+
+The media dir itself is `0775 adam:adam` (readable), so the error is misleading.
+
+**What's actually happening**
+
+udisks mounts the drive under `/run/media/adam`, and creates that per-user
+parent directory as `drwxr-x---+ root root` with an ACL that grants **only
+`adam`** (`getfacl` shows `user:adam:r-x`, `other::---`). The stock
+`minidlna.service` ships `DynamicUser=yes`, so it runs as a random transient
+UID — which is "other" here and **cannot traverse `/run/media/adam`** to reach
+the media dir underneath. It recurs on every mount because udisks recreates that
+locked-down parent each time.
+
+**How to check**
+
+```bash
+getfacl /run/media/adam                 # other::--- , only user:adam:r-x
+systemctl show minidlna -p DynamicUser  # DynamicUser=yes  -> the problem
+```
+
+**Fix (run minidlna as `adam` + bind it to the drive)**
+
+Two systemd drop-ins, tracked in this repo under
+`etc/systemd/system/` (mirroring their real paths). They are **not** auto-symlinked
+by `install-arch.sh` (orek-only), so deploy them by hand:
+
+```bash
+D=~/dev/devconfig/etc/systemd/system
+sudo cp -r "$D"/minidlna.service.d /etc/systemd/system/
+sudo cp -r "$D"/'run-media-adam-9b5330ad\x2d7662\x2d4a10\x2d90e8\x2d1d1ae68dea15.mount.d' /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl disable minidlna       # the drive mount now drives it, not boot
+sudo systemctl restart minidlna
+```
+
+- `minidlna.service.d/10-run-as-adam.conf` — `DynamicUser=no` + `User=adam`
+  (adam always holds the udisks ACL, so it survives every remount). Also
+  `BindsTo=`/`After=` the drive's mount unit → stops cleanly on unplug.
+- `run-media-adam-<UUID>.mount.d/50-start-minidlna.conf` — `Upholds=minidlna.service`
+  on the udisks mount unit → **auto-starts minidlna whenever the drive mounts**.
+  The dir name is the systemd-escaped mount path (`\x2d` = `-`); regenerate with
+  `systemd-escape -p --suffix=mount /run/media/adam/<UUID>` if the UUID changes.
+
+Net effect: minidlna's whole lifecycle follows the removable drive — up on plug,
+down on unplug, no boot-time errors when the drive is absent.
+
+**Side effects / notes**
+
+- With `DynamicUser=no`, the DB cache moves from `/var/cache/private/minidlna`
+  back to `/var/cache/minidlna`. Force a clean re-index if it complains:
+  `sudo systemctl stop minidlna && sudo rm -f /var/cache/minidlna/files.db && sudo systemctl start minidlna`.
+- media_dir lives in `/etc/minidlna.conf` (not tracked here — points at the
+  drive's UUID path).
+- Status page rejects `Host: localhost` as DNS-rebinding; query with the LAN IP:
+  `curl -H "Host: 192.168.1.69:8200" http://127.0.0.1:8200/`.
+
+**Fallback if auto-start-on-plug ever fails**
+
+The `Upholds=` drop-in relies on systemd honoring a drop-in on a udisks-generated
+mount unit (it does here — `systemctl show <mount> -p Upholds` confirms). If a
+future systemd/udisks change breaks that, replace it with a UUID-keyed udev rule:
+
+```
+# /etc/udev/rules.d/99-minidlna.rules
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_UUID}=="9b5330ad-7662-4a10-90e8-1d1ae68dea15", \
+  RUN+="/usr/bin/systemctl --no-block restart minidlna.service"
+```

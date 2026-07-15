@@ -184,7 +184,12 @@ for _android_home in /opt/android-sdk "$HOME/Android/Sdk"; do
     export ANDROID_HOME="$_android_home"
     export ANDROID_SDK_ROOT=$ANDROID_HOME
     export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865
-    export PATH=$PATH:$ANDROID_HOME/emulator
+    # avdmanager stores AVDs in ~/.config/.android/avd (XDG), but the emulator defaults
+    # to ~/.android/avd. Point both at the same place so `emulator -list-avds` (and Expo) find them.
+    export ANDROID_AVD_HOME=$HOME/.config/.android/avd
+    # emulator must come BEFORE /opt/android-sdk/tools (added by /etc/profile.d/android-sdk.sh
+    # on Arch), which contains a broken legacy emulator binary. Prepend so the real one wins.
+    export PATH=$ANDROID_HOME/emulator:$PATH
     export PATH=$PATH:$ANDROID_HOME/platform-tools
     export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
     break

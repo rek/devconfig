@@ -102,28 +102,10 @@ PanelWindow {
         // FRONT — the scope
         // ============================================================
         front: [
-            Text {
-                id: title
-                anchors { top: parent.top; left: parent.left; margins: 14 }
-                text: "▌ /sys/scope.live"
-                color: "#00fff9"
-                font.family: "JetBrainsMono Nerd Font"
-                font.pixelSize: 13
-                font.bold: true
-            },
-
-            Row {
-                anchors { top: parent.top; right: parent.right; margins: 14 }
-                spacing: 24
-                Text { text: "CPU " + (hud.cpuHistory.length ? hud.cpuHistory[hud.cpuHistory.length - 1].toFixed(0) : "0") + "%"; color: hud.cpuColor; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.bold: true }
-                Text { text: "RAM " + (hud.ramHistory.length ? hud.ramHistory[hud.ramHistory.length - 1].toFixed(0) : "0") + "%"; color: hud.ramColor; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.bold: true }
-                Text { text: "GPU " + (hud.gpuHistory.length ? hud.gpuHistory[hud.gpuHistory.length - 1].toFixed(0) : "0") + "%"; color: hud.gpuColor; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12; font.bold: true }
-            },
-
             Rectangle {
                 id: scopeFrame
-                anchors { top: title.bottom; left: parent.left; right: parent.right; bottom: parent.bottom }
-                anchors { topMargin: 12; leftMargin: 14; rightMargin: 14; bottomMargin: 14 }
+                anchors { top: parent.top; left: parent.left; right: parent.right; bottom: parent.bottom }
+                anchors { topMargin: 0; leftMargin: 14; rightMargin: 14; bottomMargin: 14 }
                 color: "#1c020503"
                 radius: 0
                 clip: true

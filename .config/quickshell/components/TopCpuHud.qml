@@ -1,8 +1,10 @@
 // Top processes by CPU% — off by default. Constantly-reordering process
 // lists are distracting sitting next to the other glanceable HUDs, so this
-// only polls while the front's LIVE toggle is on; off freezes the last
-// snapshot. Row count and poll interval are back-face settings, each an
-// OptionList (click the value you want directly, not a "cycle to next" pill).
+// only polls at the fast interval while the front's LIVE toggle is on; off
+// falls back to a slow 100s background refresh so the snapshot stays roughly
+// current without the re-sort flicker. Row count and poll interval are
+// back-face settings, each an OptionList (click the value you want directly,
+// not a "cycle to next" pill).
 // Pass `anchorBelow` to hang its top edge directly off another card's
 // bottom (same convention as IssuesHud) and `rightMargin` to park it in its
 // own column — e.g. a second inner column left of DiskHud, since eww's
@@ -44,11 +46,12 @@ PanelWindow {
         height: card.height
     }
 
+    // Even when LIVE is off, keep refreshing at a slow 100s cadence so the
+    // frozen snapshot doesn't go stale for hours — just no fast re-sort flicker.
     Poller {
         id: topProc
         command: "~/.config/quickshell/scripts/top-procs.sh"
-        interval: (parseFloat(intervalSetting.value) || 3) * 1000
-        running: live.value
+        interval: live.value ? (parseFloat(intervalSetting.value) || 3) * 1000 : 100000
     }
     // One snapshot on load regardless of the LIVE setting, so a freshly
     // started, paused-by-default card isn't just blank.

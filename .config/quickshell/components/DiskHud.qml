@@ -46,6 +46,18 @@ PanelWindow {
         interval: 30000
     }
 
+    // Fixed-folder `du -sh` quick reference for the back side. Slow interval —
+    // walking ~/dev's ~90G of inodes isn't cheap, and these sizes don't
+    // change fast enough to need it.
+    Poller {
+        id: folders
+        command: "~/.config/quickshell/scripts/folder-sizes.sh"
+        interval: 300000
+    }
+    readonly property var folderRows: (folders.value || "").split("\n")
+        .filter(l => l.length > 0)
+        .map(l => { const p = l.split("|"); return { label: p[0] || "", size: p[1] || "--" }; })
+
     readonly property var parts: (disk.value || "0|--|--|--|0|--|--|--").split("|")
     readonly property real rootPct:   parseFloat(parts[0]) || 0
     readonly property string rootUsed:  parts[1] || "--"
@@ -83,7 +95,7 @@ PanelWindow {
         anchors.rightMargin: 24
         anchors.topMargin: hud.cardTopY
         cardWidth: 380
-        cardHeight: 232
+        cardHeight: 220
         borderColor: hud.severity(Math.max(hud.rootPct, hud.bootPct))
         background: "#b8070b08"
         clickFrontToFlip: false
@@ -141,40 +153,49 @@ PanelWindow {
         ]
 
         // ============================================================
-        // BACK — raw df diagnostics
+        // BACK — root/boot summary + folder-size quick reference, one
+        // flat list (no headers/dividers — keeps the card short).
         // ============================================================
         back: [
-            Text {
-                id: backTitle
-                anchors { top: parent.top; left: parent.left; margins: 14 }
-                text: "▌ /dev/disk.diag"
-                color: hud.severity(Math.max(hud.rootPct, hud.bootPct))
-                font.family: "JetBrainsMono Nerd Font"
-                font.pixelSize: 13
-                font.bold: true
-            },
-
-            Rectangle {
-                id: backDivider
-                anchors {
-                    top: backTitle.bottom; left: parent.left; right: parent.right
-                    topMargin: 10; leftMargin: 14; rightMargin: 14
-                }
-                height: 1
-                color: "#1a3322"
-            },
-
             Column {
                 anchors {
-                    top: backDivider.bottom; left: parent.left; right: parent.right
-                    topMargin: 12; leftMargin: 14; rightMargin: 14
+                    top: parent.top; left: parent.left; right: parent.right
+                    topMargin: 14; leftMargin: 14; rightMargin: 14
                 }
-                spacing: 5
+                spacing: 6
 
-                Text { text: "/     (root)  " + Math.round(hud.rootPct) + "%  " + hud.rootUsed + " used / " + hud.rootSize + "  (" + hud.rootAvail + " free)"; color: hud.severity(hud.rootPct); font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12 }
-                Text { text: "        also covers /home, pacman cache, /var/log"; color: "#446655"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 11 }
-                Text { text: "/boot (nvme)  " + Math.round(hud.bootPct) + "%  " + hud.bootUsed + " used / " + hud.bootSize + "  (" + hud.bootAvail + " free)"; color: hud.severity(hud.bootPct); font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12 }
-                Text { text: "poll  every 30s"; color: "#446655"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12 }
+                Row {
+                    width: parent.width
+                    Text { width: 220; text: "/ (root)"; color: hud.severity(hud.rootPct); font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12 }
+                    Text { text: Math.round(hud.rootPct) + "% · " + hud.rootAvail + " free"; color: hud.severity(hud.rootPct); font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12 }
+                }
+                Row {
+                    width: parent.width
+                    Text { width: 220; text: "/boot (nvme)"; color: hud.severity(hud.bootPct); font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12 }
+                    Text { text: Math.round(hud.bootPct) + "% · " + hud.bootAvail + " free"; color: hud.severity(hud.bootPct); font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12 }
+                }
+
+                Repeater {
+                    model: hud.folderRows
+                    delegate: Row {
+                        width: parent.width
+                        Text {
+                            width: 220
+                            text: modelData.label
+                            color: "#00ff88"
+                            font.family: "JetBrainsMono Nerd Font"
+                            font.pixelSize: 12
+                        }
+                        Text {
+                            text: modelData.size
+                            color: Qt.rgba(1, 1, 1, 0.75)
+                            font.family: "JetBrainsMono Nerd Font"
+                            font.pixelSize: 12
+                        }
+                    }
+                }
+
+                Text { text: "disk poll 30s · sizes 5m"; color: "#446655"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 12 }
             }
         ]
     }

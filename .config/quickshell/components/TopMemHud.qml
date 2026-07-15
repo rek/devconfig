@@ -43,11 +43,12 @@ PanelWindow {
         height: card.height
     }
 
+    // Even when LIVE is off, keep refreshing at a slow 100s cadence so the
+    // frozen snapshot doesn't go stale for hours — just no fast re-sort flicker.
     Poller {
         id: topProc
         command: "~/.config/quickshell/scripts/top-procs-mem.sh"
-        interval: (parseFloat(intervalSetting.value) || 3) * 1000
-        running: live.value
+        interval: live.value ? (parseFloat(intervalSetting.value) || 3) * 1000 : 100000
     }
     // One snapshot on load regardless of the LIVE setting, so a freshly
     // started, paused-by-default card isn't just blank.

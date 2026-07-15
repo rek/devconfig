@@ -20,10 +20,6 @@
 (defpoll temp :interval "3s" :initial "--"
   "~/.config/eww/scripts/cpu-temp.sh")
 
-; GPU utilization %. Relaxed interval — nvidia-smi briefly wakes the dGPU.
-(defpoll gpu :interval "3s" :initial "0"
-  "~/.config/eww/scripts/gpu.sh")
-
 (defpoll dl :interval "1s" :initial "0.00"
   "~/.config/eww/scripts/net-dl.sh 1")
 
@@ -46,11 +42,6 @@
   "~/.config/eww/scripts/claude-usage.sh session-pct")
 (defpoll cc-session-reset :interval "30s" :initial "--"
   "~/.config/eww/scripts/claude-usage.sh session-reset")
-
-; GitHub-style commit heatmap across ~/dev repos. Scans ~50 repos, so the
-; script caches for 10 min and the poll runs on a relaxed interval.
-(defpoll git-heatmap :interval "600s" :initial "[]"
-  "~/.config/eww/scripts/git-heatmap.sh")
 
 (defwidget header []
   (box :class "header" :orientation "v" :space-evenly false :spacing 4
@@ -129,46 +120,7 @@
 ; (synthwave Theme singleton + reusable LaunchButton). The mode-state /
 ; nightlight-state / launch.sh scripts it calls still live in scripts/.
 
-; ── Top HUD: live CPU/RAM/GPU sparklines + git commit heatmap ────────────────
-
-; A single scrolling line graph. eww's `graph` keeps its own history keyed by
-; :value updates over :time-range. Colour is set per-class in eww.scss.
-(defwidget sparkline [lbl val cls]
-  (box :class "spark" :orientation "v" :space-evenly false :spacing 4 :hexpand true
-    (label :class "spark-label" :text lbl :halign "start")
-    (graph :class "spark-graph ${cls}"
-           :value val :time-range "90s" :max 100 :min 0
-           :thickness 5 :line-style "round"
-           :vexpand true :hexpand true)))
-
-; GitHub-style contribution grid: WEEKS columns × 7 day rows. The poll
-; (git-heatmap) yields a JSON array of week-columns of {date,count,level}.
-(defwidget heatmap []
-  (box :class "heatmap" :orientation "v" :space-evenly false :spacing 6
-    (label :class "heatmap-title" :text "◢ COMMITS // 15W" :halign "start")
-    (box :class "heatmap-grid" :orientation "h" :space-evenly false :spacing 3
-      (for week in git-heatmap
-        (box :orientation "v" :space-evenly false :spacing 3
-          (for day in week
-            (box :class "cell level-${day.level}"
-                 :tooltip "${day.date}  ·  ${day.count} commits")))))))
-
-(defwidget topbar []
-  (box :class "topbar" :orientation "h" :space-evenly false :spacing 36
-    (box :class "sparks" :orientation "h" :space-evenly false :spacing 28
-      (sparkline :lbl "CPU" :val cpu :cls "cpu")
-      (sparkline :lbl "RAM" :val ram :cls "ram")
-      (sparkline :lbl "GPU" :val gpu :cls "gpu"))
-    (box :hexpand true)
-    (box :class "divider-v")
-    (heatmap)))
-
-(defwindow top-hud
-  :monitor "eDP-2"
-  :stacking "bottom"
-  :exclusive false
-  :focusable false
-  :geometry (geometry :x "0" :y "0"
-                      :width "100%"
-                      :anchor "top center")
-  (topbar))
+; The old top-hud (CPU/RAM/GPU sparklines + git commit heatmap) moved to
+; quickshell as ScopeHud — see .config/quickshell/components/ScopeHud.qml.
+; It reuses scripts/cpu.sh, scripts/gpu.sh, and scripts/git-heatmap.sh
+; directly, so those stay here even though their eww defpoll/widgets are gone.

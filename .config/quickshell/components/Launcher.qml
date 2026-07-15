@@ -38,8 +38,9 @@ PanelWindow {
     }
 
     // State pollers — the same scripts the eww launcher used.
-    Poller { id: modeState;  command: "~/.config/eww/scripts/mode-state.sh";       interval: 3000 }
-    Poller { id: nightState; command: "~/.config/eww/scripts/nightlight-state.sh"; interval: 3000 }
+    Poller { id: modeState;   command: "~/.config/eww/scripts/mode-state.sh";       interval: 3000 }
+    Poller { id: nightState;  command: "~/.config/eww/scripts/nightlight-state.sh"; interval: 3000 }
+    Poller { id: phoneState;  command: "~/.config/quickshell/scripts/headphone-state.sh";  interval: 3000 }
 
     Rectangle {
         id: panel
@@ -85,6 +86,8 @@ PanelWindow {
                     command: "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/display-switch.sh glasses-only" }
                 LaunchButton { icon: "󰌢"; label: "LAPTOP";
                     command: "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/display-switch.sh laptop" }
+                LaunchButton { icon: "󰋋"; label: "PHONES"; active: phoneState.value === "on";
+                    command: "~/.config/eww/scripts/launch.sh ~/.config/quickshell/scripts/headphone-toggle.sh" }
             }
 
             // Row 2 — actions. NIGHT highlights when nightlight is on.

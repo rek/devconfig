@@ -22,8 +22,26 @@ ShellRoot {
     }
     readonly property bool workMode: modeState.value === "work"
 
+    // ============================================================
+    // Multi-channel oscilloscope — CPU/RAM/GPU, replacing eww's old top-hud
+    // sparklines. Reclaims the freed-up top strip. Drag to flip for the git
+    // commit heatmap that used to share that eww window.
+    // ============================================================
+    ScopeHud {
+        id: scopeHud
+    }
+
     PanelWindow {
         id: statsHud
+
+        // Same anchorBelow convention as IssuesHud/PrsHud/DiskHud — hangs
+        // directly off diskHud's bottom edge.
+        property var anchorBelow: diskHud
+        property int anchorGap: 20
+        readonly property real cardTopY:
+            anchorBelow ? (anchorBelow.cardBottomY + anchorGap)
+                        : (height * 0.35 - statsCard.cardHeight / 2)
+        readonly property real cardBottomY: cardTopY + statsCard.cardHeight
 
         screen: {
             for (let s of Quickshell.screens) {
@@ -84,9 +102,9 @@ ShellRoot {
         // toggle keeps its own clicks, so the back flips home by drag only.
         FlipCard {
             id: statsCard
+            anchors.top: parent.top
             anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.verticalCenterOffset: -parent.height * 0.15
+            anchors.topMargin: statsHud.cardTopY
             anchors.rightMargin: 24
             cardWidth: 380
             cardHeight: 246
@@ -213,10 +231,10 @@ ShellRoot {
     }
 
     // ============================================================
-    // tgt PR HUD — open PRs on maiella-io/tgt. Left edge of eDP-2, top of
-    // the issues stack. Visible only in work mode; alphaIssues anchors
-    // below it when it's up, and falls back to its own vCenterOffsetRel
-    // when we're not in work mode.
+    // tgt PR HUD — open PRs on maiella-io/tgt. Left edge of eDP-2, hangs
+    // directly off the scope HUD's bottom edge, top of the issues stack.
+    // Visible only in work mode; alphaIssues anchors below it when it's up,
+    // and falls back to hanging off the scope HUD directly otherwise.
     // ============================================================
     PrsHud {
         id: tgtPrs
@@ -224,7 +242,7 @@ ShellRoot {
         stateKey:  "prs"
         script:    "~/.config/eww/scripts/github-prs.sh"
         cachePath: "${XDG_RUNTIME_DIR:-/tmp}/eww-github-prs.json"
-        vCenterOffsetRel: -0.25
+        anchorBelow: scopeHud
         active: root.workMode
     }
 
@@ -238,10 +256,9 @@ ShellRoot {
         tabName: "alpha"
         title:   "▌ /git/needs_reply.atg"
         stateKey: "issues-alpha"
-        vCenterOffsetRel: -0.20
-        // In work mode, slide below the tgt PR HUD. Otherwise fall back to
-        // own vCenterOffsetRel — null tells the card to use verticalCenter.
-        anchorBelow: tgtPrs.active ? tgtPrs : null
+        // In work mode, slide below the tgt PR HUD; otherwise hang directly
+        // off the scope HUD instead.
+        anchorBelow: tgtPrs.active ? tgtPrs : scopeHud
     }
 
     IssuesHud {
@@ -266,6 +283,67 @@ ShellRoot {
     // ============================================================
     SteamRestore {
         id: steamRestore
+    }
+
+    // ============================================================
+    // Orca Slicer launcher. Sits immediately left of the Steam button.
+    // ============================================================
+    OrcaSlicerLaunch {
+        id: orcaSlicerLaunch
+    }
+
+    // ============================================================
+    // Blender launcher. Sits immediately left of the Orca button.
+    // Launches with -noaudio (see BlenderLaunch.qml).
+    // ============================================================
+    BlenderLaunch {
+        id: blenderLaunch
+    }
+
+    // ============================================================
+    // Disk usage — root volume + /boot, styled as spinning vinyl (gallery
+    // variant #22). Top-right, hangs directly off the scope HUD's bottom
+    // edge, top of the right-column stack. Drag to flip for raw df
+    // diagnostics.
+    // ============================================================
+    DiskHud {
+        id: diskHud
+        anchorBelow: scopeHud
+    }
+
+    // ============================================================
+    // Lily58 keyboard status — link (USB/BLE) + per-half battery, styled as
+    // a spinning mixtape. Top-right, directly below the stats card; drag to
+    // flip for diagnostics + the ZMK Studio launcher.
+    // ============================================================
+    KeyboardHud {
+        id: keyboardHud
+        anchorBelow: statsHud
+    }
+
+    // ============================================================
+    // Top CPU / Top memory processes — a second inner column, immediately
+    // left of DiskHud, hanging off the scope HUD's bottom edge like the
+    // main right column does. NOT stacked below KeyboardHud (where they
+    // used to live) — that column runs down into eww's claude-hud (fixed
+    // bottom-right), and the two semi-transparent windows overlapping made
+    // both unreadable. This column only needs to reach ~y680 at default
+    // settings, nowhere near claude-hud's ~y1170 top edge.
+    //
+    // Off by default (back-face LIVE toggle) so the constantly-reordering
+    // list doesn't sit there flickering; row count (5/10/15) is also a
+    // back-face setting.
+    // ============================================================
+    TopCpuHud {
+        id: topCpuHud
+        anchorBelow: scopeHud
+        rightMargin: 24 + 380 + 20   // DiskHud's width + a 20px gap
+    }
+
+    TopMemHud {
+        id: topMemHud
+        anchorBelow: topCpuHud
+        rightMargin: topCpuHud.rightMargin
     }
 
     // ============================================================

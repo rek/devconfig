@@ -6,7 +6,8 @@ compinit
 # OPENSPEC:END
 
 # Auto-start zellij (replaced byobu)
-# Only auto-attach when opening a fresh terminal — skip in VS Code, Guake, ddterm, embedded terms, or if already inside zellij.
+# Only auto-attach when opening a fresh terminal — skip if zellij isn't installed, if already
+# inside a multiplexer (zellij/tmux/screen/byobu), or in VS Code, Guake, ddterm, embedded terms.
 # If another terminal is already attached to a zellij session, create a fresh per-terminal session
 # instead of piling onto `default` (so each monitor/window gets its own state).
 # ddterm detection: an env var set only on the ghostty -e launch command (DDTERM=1)
@@ -18,7 +19,7 @@ _win_class=""
 if [[ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]]; then
   _win_class=$(hyprctl activewindow -j 2>/dev/null | jq -r '.class // empty' 2>/dev/null)
 fi
-if [[ -z "$ZELLIJ" && -z "$ZELLIJ_SESSION_NAME" && "$TERM_PROGRAM" != "vscode" && "$TERM_PROGRAM" != "guake" && -z "$INSIDE_EMACS" && -z "$VIMRUNTIME" && -z "$GUAKE" && "$_parent_proc" != "guake" && "$_win_class" != "dropdown.term" ]]; then
+if [[ -x ~/.local/bin/zellij && -z "$TMUX" && -z "$STY" && -z "$BYOBU_BACKEND" && -z "$ZELLIJ" && -z "$ZELLIJ_SESSION_NAME" && "$TERM_PROGRAM" != "vscode" && "$TERM_PROGRAM" != "guake" && -z "$INSIDE_EMACS" && -z "$VIMRUNTIME" && -z "$GUAKE" && "$_parent_proc" != "guake" && -z "$DDTERM" && "$_win_class" != "dropdown.term" ]]; then
   if pgrep -f 'zellij attach' >/dev/null 2>&1; then
     exec ~/.local/bin/zellij attach --create "term-$$"
   else
@@ -171,16 +172,25 @@ export INFOPATH="$HOME/.linuxbrew/share/info:$INFOPATH"
 export PATH="/home/adam/.crc/bin/oc:$PATH"
 export PATH="$HOME/.crc/bin/oc:$PATH"
 
-# Java (Arch's archlinux-java default — currently JDK 21)
-export JAVA_HOME=/usr/lib/jvm/default
+# Java — Arch's archlinux-java default (JDK 21), Debian/Ubuntu's update-alternatives default
+for _java_home in /usr/lib/jvm/default /usr/lib/jvm/default-java; do
+  [ -d "$_java_home" ] && export JAVA_HOME="$_java_home" && break
+done
+unset _java_home
 
-# Android SDK (installed via AUR at /opt/android-sdk)
-export ANDROID_HOME=/opt/android-sdk
-export ANDROID_SDK_ROOT=$ANDROID_HOME
-export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865
-export PATH=$PATH:$ANDROID_HOME/emulator
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+# Android SDK (Arch: AUR /opt/android-sdk; Ubuntu: Studio's ~/Android/Sdk)
+for _android_home in /opt/android-sdk "$HOME/Android/Sdk"; do
+  if [ -d "$_android_home" ]; then
+    export ANDROID_HOME="$_android_home"
+    export ANDROID_SDK_ROOT=$ANDROID_HOME
+    export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865
+    export PATH=$PATH:$ANDROID_HOME/emulator
+    export PATH=$PATH:$ANDROID_HOME/platform-tools
+    export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+    break
+  fi
+done
+unset _android_home
 
 export PATH=$PATH:/home/adam/bin
 
@@ -217,9 +227,15 @@ unset __conda_setup
 export PATH=$PATH:/usr/local/go/bin
 export LD_LIBRARY_PATH=/usr/lib32/nvidia:/usr/lib/nvidia:$LD_LIBRARY_PATH
 
-# add fuzzy finder
-source /usr/share/fzf/key-bindings.zsh
-source /usr/share/fzf/completion.zsh
+# add fuzzy finder (Arch ships /usr/share/fzf, Debian/Ubuntu /usr/share/doc/fzf/examples)
+for _fzf_dir in /usr/share/fzf /usr/share/doc/fzf/examples; do
+  if [ -d "$_fzf_dir" ]; then
+    [ -f "$_fzf_dir/key-bindings.zsh" ] && source "$_fzf_dir/key-bindings.zsh"
+    [ -f "$_fzf_dir/completion.zsh" ] && source "$_fzf_dir/completion.zsh"
+    break
+  fi
+done
+unset _fzf_dir
 
 # for beads ai coding tool
 export PATH="$PATH:/home/adam/go/bin"

@@ -1,6 +1,6 @@
-// Quickshell HUDs on eDP-2: stats card (CPU/RAM/TMP/DL/UL/BAT), tgt PRs
-// (work mode only), and needs-reply issues for alpha + parakeet. Runs
-// alongside eww as a layer-shell client.
+// Quickshell HUDs on eDP-2: stats card (CPU/RAM/TMP/DL/UL/BAT) and
+// needs-reply issues for alpha + parakeet. Runs alongside eww as a
+// layer-shell client.
 // Launch:   quickshell                  (auto-loads ~/.config/quickshell)
 // Teardown: pkill quickshell
 
@@ -12,15 +12,6 @@ import "components"
 
 ShellRoot {
     id: root
-
-    // Active Hyprland mode ("work" | "home" | "none"). Used to gate which
-    // HUDs are visible — the tgt PR HUD shows only in work mode.
-    Poller {
-        id: modeState
-        command: "~/.config/eww/scripts/mode-state.sh"
-        interval: 3000
-    }
-    readonly property bool workMode: modeState.value === "work"
 
     // ============================================================
     // Multi-channel oscilloscope — CPU/RAM/GPU, replacing eww's old top-hud
@@ -231,22 +222,6 @@ ShellRoot {
     }
 
     // ============================================================
-    // tgt PR HUD — open PRs on maiella-io/tgt. Left edge of eDP-2, hangs
-    // directly off the scope HUD's bottom edge, top of the issues stack.
-    // Visible only in work mode; alphaIssues anchors below it when it's up,
-    // and falls back to hanging off the scope HUD directly otherwise.
-    // ============================================================
-    PrsHud {
-        id: tgtPrs
-        title:     "▌ /git/my_prs.tgt"
-        stateKey:  "prs"
-        script:    "~/.config/eww/scripts/github-prs.sh"
-        cachePath: "${XDG_RUNTIME_DIR:-/tmp}/eww-github-prs.json"
-        anchorBelow: scopeHud
-        active: root.workMode
-    }
-
-    // ============================================================
     // ISSUES HUDs — open issues whose last activity isn't from us.
     // Left edge of eDP-2; one card per repo, stacked vertically.
     // ============================================================
@@ -256,9 +231,7 @@ ShellRoot {
         tabName: "alpha"
         title:   "▌ /git/needs_reply.atg"
         stateKey: "issues-alpha"
-        // In work mode, slide below the tgt PR HUD; otherwise hang directly
-        // off the scope HUD instead.
-        anchorBelow: tgtPrs.active ? tgtPrs : scopeHud
+        anchorBelow: scopeHud
     }
 
     IssuesHud {

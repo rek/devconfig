@@ -262,3 +262,18 @@ export PATH=$PATH:/home/adam/.pulumi/bin
 alias peon="bash /home/adam/.claude/hooks/peon-ping/peon.sh"
 [ -f /home/adam/.claude/hooks/peon-ping/completions.bash ] && source /home/adam/.claude/hooks/peon-ping/completions.bash
 
+# Run Claude Code against the local Ollama server (RTX 5090).
+# Usage: claude-local [claude args...]   e.g. claude-local -p "explain this repo"
+# Override model: CLAUDE_LOCAL_MODEL=qwen3.5 claude-local
+claude-local() {
+  local model="${CLAUDE_LOCAL_MODEL:-devstral}"
+  if ! curl -sf -m 2 http://localhost:11434/api/tags >/dev/null 2>&1; then
+    echo "ollama not responding — starting service..."
+    sudo systemctl start ollama && sleep 2
+  fi
+  ANTHROPIC_AUTH_TOKEN=ollama \
+  ANTHROPIC_API_KEY="" \
+  ANTHROPIC_BASE_URL=http://localhost:11434 \
+  claude --model "$model" "$@"
+}
+

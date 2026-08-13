@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+# zmk-kb-status — link + battery state of a ZMK keyboard, for any status bar.
+#
+# The probing logic is bar-agnostic; --format picks the output shape:
+#   plain   usb|85|72                        (quickshell Poller, scripts)
+#   json    {"link":"usb","left":85,...}     (anything that parses JSON)
+#   waybar  {"text":"...","class":"usb",...} (waybar custom module)
+#   text    󰈷 85 72                          (GNOME Executor/Argos, tmux, etc.)
+#
+# Split boards: the central proxies the peripheral's battery as a second BLE
+# battery-service instance (CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_PROXY).
+# BlueZ surfaces the primary as org.bluez.Battery1; the second instance is read
+# straight off the GATT characteristic (UUID 2a19). Unibody boards just report
+# one percentage and leave the right half empty.
+#
+# Config resolves flags > env > ~/.config/zmk-kb-status/config > autodetect.
+# Autodetect finds a connected BLE keyboard advertising the battery service, so
+# a fresh machine needs no config at all.
+#
+# Requires: bluetoothctl + busctl (both ship with BlueZ). No other deps.
+
+set -uo pipefail
+
+BATTERY_SVC="0000180f-0000-1000-8000-00805f9b34fb"
+BATTERY_CHAR="00002a19-0000-1000-8000-00805f9b34fb"
+DEFAULT_USB_ID="1d50:615e"   # ZMK's default VID:PID
+
+CONFIG_FILE="${ZMK_KB_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/zmk-kb-status/config}"
+
+usage() {
+    cat <<'EOF'
+Usage: zmk-kb-status [options]
+
+  --format FMT     plain (default) | json | waybar | text
+  --mac ADDR       BLE address of the keyboard (default: autodetect)
+  --adapter HCI    BlueZ adapter, e.g. hci0 (default: first adapter)
+  --usb-id ID      USB VID:PID to treat as "wired" (default: 1d50:615e)
+  --usb-serial S   also require this USB serial — pins one half of a split
+  --no-usb         skip USB detection entirely
+  --watch SECONDS  loop forever, printing every SECONDS (for waybar exec)
+  --config PATH    config file to read (default: ~/.config/zmk-kb-status/config)
+  -h, --help       this text
+
+Config file uses the same names, shell syntax:
+  ZMK_KB_MAC=E8:0C:B3:F6:66:10
+  ZMK_KB_USB_SERIAL=3A8F02D9AD37EF58
+EOF
+}
+
+# ---------------------------------------------------------------- config
+
+format="${ZMK_KB_FORMAT:-plain}"
+mac="${ZMK_KB_MAC:-}"
+adapter="${ZMK_KB_ADAPTER:-}"
+usb_id="${ZMK_KB_USB_ID:-}"
+usb_serial="${ZMK_KB_USB_SERIAL:-}"
+no_usb=""
+watch=""
+
+# Flags are parsed twice: once to find --config, then again after sourcing it,
+# so an explicit flag always beats the file.
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+    [ "${args[i]}" = "--config" ] && CONFIG_FILE="${args[i+1]:-}"
+done
+# shellcheck disable=SC1090
+[ -r "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+format="${format:-${ZMK_KB_FORMAT:-plain}}"
+[ -z "$mac" ] && mac="${ZMK_KB_MAC:-}"
+[ -z "$adapter" ] && adapter="${ZMK_KB_ADAPTER:-}"
+[ -z "$usb_id" ] && usb_id="${ZMK_KB_USB_ID:-$DEFAULT_USB_ID}"
+[ -z "$usb_serial" ] && usb_serial="${ZMK_KB_USB_SERIAL:-}"
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --format)     format="$2"; shift 2 ;;
+        --mac)        mac="$2"; shift 2 ;;
+        --adapter)    adapter="$2"; shift 2 ;;
+        --usb-id)     usb_id="$2"; shift 2 ;;
+        --usb-serial) usb_serial="$2"; shift 2 ;;
+        --no-usb)     no_usb=1; shift ;;
+        --watch)      watch="$2"; shift 2 ;;
+        --config)     shift 2 ;;
+        -h|--help)    usage; exit 0 ;;
+        *)            echo "zmk-kb-status: unknown option $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+case "$format" in
+    plain|json|waybar|text) ;;
+    *) echo "zmk-kb-status: unknown format '$format'" >&2; exit 2 ;;
+esac
+
+# ---------------------------------------------------------------- probing
+
+# First BlueZ adapter, or the configured one.
+resolve_adapter() {
+    [ -n "$adapter" ] && { echo "$adapter"; return; }
+    busctl tree org.bluez 2>/dev/null \
+        | grep -oE '/org/bluez/hci[0-9]+' | head -1 | sed 's|.*/||'
+}
+
+prop() { # prop <path> <interface> <name> -> raw value, empty if absent
+    busctl get-property org.bluez "$1" "$2" "$3" 2>/dev/null
+}
+
+# A connected device exposing the battery service and looking like a keyboard.
+autodetect_mac() {
+    local hci="$1" path dev uuids appearance
+    while read -r path; do
+        [ -n "$path" ] || continue
+        [ "$(prop "$path" org.bluez.Device1 Connected | awk '{print $2}')" = "true" ] || continue
+        uuids=$(prop "$path" org.bluez.Device1 UUIDs)
+        case "$uuids" in *"$BATTERY_SVC"*) ;; *) continue ;; esac
+        # Appearance 0x03c1 is "keyboard"; accept the whole HID range and fall
+        # back to the icon, since some boards advertise neither cleanly.
+        appearance=$(prop "$path" org.bluez.Device1 Icon | grep -oE 'keyboard')
+        [ -z "$appearance" ] && case "$uuids" in
+            *"00001812-0000-1000-8000-00805f9b34fb"*) ;; *) continue ;;
+        esac
+        dev=${path##*/dev_}
+        echo "${dev//_/:}"
+        return
+    done < <(busctl tree org.bluez 2>/dev/null \
+             | grep -oE "/org/bluez/$hci/dev_[0-9A-F_]+$" | sort -u)
+}
+
+# Wired if a USB device matches the VID:PID (and serial, when pinned).
+usb_connected() {
+    [ -n "$no_usb" ] && return 1
+    local vid="${usb_id%%:*}" pid="${usb_id##*:}" dev
+    for dev in /sys/bus/usb/devices/*; do
+        [ -r "$dev/idVendor" ] || continue
+        [ "$(cat "$dev/idVendor" 2>/dev/null)" = "$vid" ] || continue
+        [ "$(cat "$dev/idProduct" 2>/dev/null)" = "$pid" ] || continue
+        if [ -n "$usb_serial" ]; then
+            [ "$(cat "$dev/serial" 2>/dev/null)" = "$usb_serial" ] || continue
+        fi
+        return 0
+    done
+    return 1
+}
+
+hci=$(resolve_adapter)
+[ -z "$hci" ] && hci="hci0"
+[ -z "$mac" ] && mac=$(autodetect_mac "$hci")
+
+link="off"
+usb_connected && link="usb"
+
+left=""; right=""
+
+if [ -n "$mac" ]; then
+    devpath="/org/bluez/$hci/dev_${mac//:/_}"
+    if [ "$(prop "$devpath" org.bluez.Device1 Connected | awk '{print $2}')" = "true" ]; then
+        [ "$link" = "off" ] && link="ble"
+
+        # Primary battery (central) via the Battery1 convenience interface.
+        # Absent until the bond is established and GATT services resolve.
+        pct=$(prop "$devpath" org.bluez.Battery1 Percentage | awk '{print $2}')
+        [ -n "$pct" ] && left="$pct"
+
+        # Secondary instance (peripheral proxy): read every 2a19 characteristic
+        # BlueZ exposes; the extra one past the primary is the other half.
+        while read -r char; do
+            [ -n "$char" ] || continue
+            uuid=$(prop "$char" org.bluez.GattCharacteristic1 UUID | grep -oE '"[^"]+"' | tr -d '"')
+            [ "$uuid" = "$BATTERY_CHAR" ] || continue
+            val=$(busctl call org.bluez "$char" org.bluez.GattCharacteristic1 \
+                  ReadValue 'a{sv}' 0 2>/dev/null | awk '{print $NF}')
+            [ -n "$val" ] && right="$val"
+        done < <(busctl tree org.bluez 2>/dev/null \
+                 | grep -oE "$devpath/service[0-9a-f]+/char[0-9a-f]+")
+
+        # With one battery service there is no proxy — that reading is the
+        # central's, not a second half.
+        [ -n "$right" ] && [ "$right" = "$left" ] && right=""
+        [ -z "$left" ] && [ -n "$right" ] && { left="$right"; right=""; }
+    fi
+fi
+
+# ---------------------------------------------------------------- output
+
+# nf-md-usb / nf-md-bluetooth / nf-md-keyboard_off
+case "$link" in
+    usb) glyph="󰈷" ;;
+    ble) glyph="󰂯" ;;
+    *)   glyph="󰌐" ;;
+esac
+
+emit() {
+    local l="${left:---}" r="${right:---}"
+    case "$format" in
+        plain)
+            echo "$link|$l|$r"
+            ;;
+        text)
+            if [ -n "$right" ]; then echo "$glyph $l $r"
+            elif [ -n "$left" ]; then echo "$glyph $l"
+            else echo "$glyph"; fi
+            ;;
+        json)
+            printf '{"link":"%s","left":%s,"right":%s}\n' \
+                "$link" "${left:-null}" "${right:-null}"
+            ;;
+        waybar)
+            local text tooltip pct
+            if [ -n "$right" ]; then
+                text="$glyph $left% $right%"
+                tooltip="ZMK keyboard — $link · left $left% · right $right%"
+                pct=$(( left < right ? left : right ))
+            elif [ -n "$left" ]; then
+                text="$glyph $left%"
+                tooltip="ZMK keyboard — $link · $left%"
+                pct="$left"
+            else
+                text="$glyph"
+                tooltip="ZMK keyboard — $link · battery unknown"
+                pct=""
+            fi
+            # class drives the CSS colour; "unknown" covers connected-but-no-GATT
+            # (unbonded, services unresolved), which is not the same as absent.
+            local class="$link"
+            [ "$link" != "off" ] && [ -z "$left" ] && class="unknown"
+            if [ -n "$pct" ]; then
+                printf '{"text":"%s","tooltip":"%s","class":"%s","percentage":%s}\n' \
+                    "$text" "$tooltip" "$class" "$pct"
+            else
+                printf '{"text":"%s","tooltip":"%s","class":"%s"}\n' \
+                    "$text" "$tooltip" "$class"
+            fi
+            ;;
+    esac
+}
+
+emit
+
+if [ -n "$watch" ]; then
+    while sleep "$watch"; do
+        # Re-probe by re-execing: cheaper to write than to factor the whole
+        # probe into a function called twice, and keeps state from leaking.
+        exec "$0" "${args[@]}"
+    done
+fi

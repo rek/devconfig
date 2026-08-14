@@ -38,8 +38,18 @@ set -euo pipefail
 # Hardware-specific modes. The Philips 278B1 advertises 3840x2160@30 as its
 # EDID-preferred mode (it's a 1440p panel that accepts a downscaled 4K
 # signal), so we can't trust `preferred` for it. The XReal glasses always
-# enumerate as 1920x1080. Laptop stays on `preferred` so this script works
-# on whatever panel future-me happens to have.
+# enumerate as 1920x1080.
+#
+# The laptop panel used to stay on `preferred` so this script would work on
+# whatever panel future-me happens to have — but `preferred` resolves to
+# 2560x1600@240, and driving a 240Hz panel costs ~25W of GPU on an idle
+# desktop (measured 2026-08-14: 45%/47W at 240Hz vs 14%/19W at 60Hz, worth
+# ~20°C of CPU package temp on this shared-heatpipe chassis). Nothing on this
+# desktop benefits from 240Hz.
+#
+# Override to go back, either permanently here or per-invocation:
+#   LAPTOP_MODE=preferred display-setup.sh <mode>
+LAPTOP_MODE="${LAPTOP_MODE:-2560x1600@60}"
 PHIL_MODE="2560x1440@59.95"
 PHIL_W=2560
 PHIL_H=1440
@@ -168,7 +178,7 @@ mode_extend() {
     # Laptop sits below the Philips column. x is clamped so the laptop
     # overlaps the Philips x-range (Hyprland requires monitors to touch).
     local laptop_x=$(( 795 < phil_lw - 1 ? 795 : phil_lw - 1 ))
-    apply "$LAPTOP" "preferred,${laptop_x}x${phil_lh},1"
+    apply "$LAPTOP" "${LAPTOP_MODE},${laptop_x}x${phil_lh},1"
 
     if [[ -n $GLASSES ]]; then
         local y=$(( phil_lh - XR_H ))
@@ -190,7 +200,7 @@ mode_desk() {
 
     apply "$PHILIPS" "${PHIL_MODE},0x0,1,transform,1"
     local laptop_x=$(( 795 < phil_lw - 1 ? 795 : phil_lw - 1 ))
-    apply "$LAPTOP" "preferred,${laptop_x}x${phil_lh},1"
+    apply "$LAPTOP" "${LAPTOP_MODE},${laptop_x}x${phil_lh},1"
     [[ -n $GLASSES ]] && disable_monitor "$GLASSES"
 
     if (( ${#OTHERS[@]} > 0 )); then
@@ -220,7 +230,7 @@ mode_home() {
     fi
 
     apply "$PHILIPS" "${PHIL_MODE},${mon_x}x0,1"
-    apply "$LAPTOP"  "preferred,${laptop_x}x${mh},1"
+    apply "$LAPTOP"  "${LAPTOP_MODE},${laptop_x}x${mh},1"
 
     [[ -n $GLASSES ]] && disable_monitor "$GLASSES"
     for o in "${OTHERS[@]}"; do disable_monitor "$o"; done
@@ -231,7 +241,7 @@ mode_glasses_only() {
         echo "ERROR: glasses-only mode needs glasses + laptop" >&2; exit 1; }
 
     apply "$GLASSES" "${XR_MODE},0x0,1"
-    apply "$LAPTOP"  "preferred,0x${XR_H},1"
+    apply "$LAPTOP"  "${LAPTOP_MODE},0x${XR_H},1"
     [[ -n $PHILIPS ]] && disable_monitor "$PHILIPS"
     for o in "${OTHERS[@]}"; do disable_monitor "$o"; done
 }
@@ -244,7 +254,7 @@ mode_laptop() {
     [[ -n $PHILIPS ]] && disable_monitor "$PHILIPS"
     for o in "${OTHERS[@]}"; do disable_monitor "$o"; done
 
-    apply "$LAPTOP" "preferred,0x0,1"
+    apply "$LAPTOP" "${LAPTOP_MODE},0x0,1"
 }
 
 status() {

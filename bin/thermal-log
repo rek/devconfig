@@ -1,0 +1,252 @@
+#!/usr/bin/env bash
+# thermal-log — sample thermal + load state on an interval, so a heat spike
+# leaves evidence instead of having to be reconstructed after the fact.
+#
+# Written after a 2026-08-14 episode where the CPU package sat at 85°C while
+# the CPU itself was 96% idle. By the time it was investigated the condition
+# had stopped on its own, and there was no record of what had been running.
+# The whole point of this script is that the *next* one is answerable.
+#
+#   thermal-log run                 sample forever (default 30s interval)
+#   thermal-log run --interval 10   tighter cadence
+#   thermal-log once                emit a single sample to stdout, exit
+#   thermal-log report              summarise the log; hottest samples first
+#   thermal-log incidents           dump the detail captured during spikes
+#
+# Two outputs, both under ${STATE_DIR}:
+#   samples.tsv    one line per interval — cheap, all from sysfs, kept forever
+#                  (rotated at ~8MB, which is months at 30s)
+#   incidents.log  a full snapshot (top processes, GPU clients, clocks) written
+#                  ONLY when a sample crosses a threshold. This is the bit that
+#                  was missing last time.
+#
+# CPU% per process is a true average over the sampling interval, computed from
+# /proc jiffy deltas between our own samples — not ps's since-launch average,
+# which is what makes `ps aux | sort` so misleading on a long-lived process.
+
+set -uo pipefail
+
+STATE_DIR="${THERMAL_LOG_DIR:-$HOME/.local/state/thermal-log}"
+SAMPLES="$STATE_DIR/samples.tsv"
+INCIDENTS="$STATE_DIR/incidents.log"
+
+INTERVAL=30
+TEMP_TRIGGER="${THERMAL_LOG_TEMP_TRIGGER:-80}"   # °C, CPU package
+GPU_TRIGGER="${THERMAL_LOG_GPU_TRIGGER:-35}"     # % util
+MAX_BYTES=$((8 * 1024 * 1024))
+INCIDENT_COOLDOWN=300                            # s between detail captures
+
+# --- sysfs discovery. Done once at startup; these paths are stable per boot. --
+
+PKG_ZONE=""
+for z in /sys/class/thermal/thermal_zone*; do
+    [[ -r "$z/type" ]] || continue
+    if [[ "$(<"$z/type")" == "x86_pkg_temp" ]]; then PKG_ZONE="$z/temp"; break; fi
+done
+
+FAN_HWMON="" DIMM_INPUT=""
+for h in /sys/class/hwmon/hwmon*; do
+    [[ -r "$h/name" ]] || continue
+    case "$(<"$h/name")" in
+        msi_wmi_platform) FAN_HWMON="$h" ;;
+        # First DIMM sensor is representative; they track each other closely.
+        spd5118) [[ -z "$DIMM_INPUT" ]] && DIMM_INPUT="$h/temp1_input" ;;
+    esac
+done
+
+have_nvidia=0
+command -v nvidia-smi >/dev/null 2>&1 && have_nvidia=1
+
+# --- readers. Each prints a value or "-" so columns never shift. ---
+
+read_milli() { # sysfs millidegrees -> whole °C
+    local f=$1 v
+    [[ -r "$f" ]] && v=$(<"$f") && [[ -n "$v" ]] && echo $((v / 1000)) || echo "-"
+}
+
+read_fans() { # "rpm1,rpm2" — only the populated slots; this chassis has two
+    local out=() f v
+    for f in "$FAN_HWMON"/fan[0-9]_input; do
+        [[ -r "$f" ]] || continue
+        v=$(<"$f")
+        # 0 RPM here means an unpopulated WMI slot, not a stopped fan.
+        [[ "$v" -gt 0 ]] && out+=("$v")
+    done
+    [[ ${#out[@]} -gt 0 ]] && (IFS=,; echo "${out[*]}") || echo "-"
+}
+
+read_gpu() { # "util,power,temp" in one nvidia-smi call
+    (( have_nvidia )) || { echo "-,-,-"; return; }
+    nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu \
+               --format=csv,noheader,nounits 2>/dev/null \
+        | head -1 | tr -d ' ' || echo "-,-,-"
+}
+
+# --- per-process CPU%, averaged over the interval via /proc jiffy deltas. ---
+
+declare -A PREV_TICKS
+PREV_STAMP=0
+HZ=$(getconf CLK_TCK 2>/dev/null || echo 100)
+NCPU=$(nproc 2>/dev/null || echo 1)
+
+# Prints "name:pct name:pct name:pct" for the top N since the previous call.
+# Percentages are of a single core, matching how top reports them.
+top_procs() {
+    local n=${1:-3} now elapsed pid ticks comm delta pct
+    local -A cur=()
+    local -a scored=()
+
+    now=$(awk '{print int($1)}' /proc/uptime)
+    elapsed=$(( now - PREV_STAMP ))
+
+    for stat in /proc/[0-9]*/stat; do
+        [[ -r "$stat" ]] || continue
+        # comm can contain spaces/parens, so split on the final ')'.
+        local line rest
+        line=$(<"$stat") || continue
+        pid=${line%% *}
+        comm=${line#*(}; comm=${comm%%)*}
+        rest=${line#*) }
+        # After the state field: fields 3..: utime=12th, stime=13th of `rest`.
+        read -r -a f <<< "$rest"
+        ticks=$(( ${f[11]:-0} + ${f[12]:-0} ))
+        cur[$pid]=$ticks
+
+        if (( PREV_STAMP > 0 && elapsed > 0 )) && [[ -n "${PREV_TICKS[$pid]:-}" ]]; then
+            delta=$(( ticks - PREV_TICKS[$pid] ))
+            (( delta > 0 )) || continue
+            pct=$(( delta * 100 / HZ / elapsed ))
+            (( pct > 0 )) && scored+=("$pct $comm")
+        fi
+    done
+
+    PREV_TICKS=()
+    for pid in "${!cur[@]}"; do PREV_TICKS[$pid]=${cur[$pid]}; done
+    PREV_STAMP=$now
+
+    if (( ${#scored[@]} == 0 )); then echo "-"; return; fi
+    printf '%s\n' "${scored[@]}" | sort -rn | head -"$n" \
+        | awk '{printf "%s:%s%%%s", $2, $1, (NR<3 ? " " : "")}' | sed 's/ $//'
+}
+
+# --- incident capture: the expensive snapshot, only when something is wrong ---
+
+LAST_INCIDENT=0
+
+capture_incident() {
+    local reason=$1 now
+    now=$(date +%s)
+    (( now - LAST_INCIDENT < INCIDENT_COOLDOWN )) && return
+    LAST_INCIDENT=$now
+
+    {
+        echo "═══════════════════════════════════════════════════════════════"
+        echo "$(date -Is)  INCIDENT: $reason"
+        echo "───────────────────────────────────────────────────────────────"
+        echo "## load"; uptime
+        echo
+        echo "## top by CPU (2 passes, second is instantaneous)"
+        top -bn2 -d1 -o %CPU 2>/dev/null | awk '/^top -/{n++} n==2' | head -20
+        echo
+        if (( have_nvidia )); then
+            echo "## GPU clients"
+            nvidia-smi 2>/dev/null | tail -12
+            echo
+        fi
+        echo "## CPU clocks"
+        grep MHz /proc/cpuinfo | awk '{s+=$4; if($4>m)m=$4} END{printf "avg %.0f MHz  max %.0f MHz\n", s/NR, m}'
+        echo
+        echo "## thermal"
+        sensors 2>/dev/null | grep -E "Package id|^temp1|^fan[0-9]" || echo "(sensors unavailable)"
+        echo
+    } >> "$INCIDENTS"
+}
+
+rotate() {
+    local f=$1 sz
+    sz=$(stat -c %s "$f" 2>/dev/null || echo 0)
+    (( sz > MAX_BYTES )) && mv -f "$f" "$f.1"
+    return 0
+}
+
+emit_sample() {
+    local pkg dimm fans gpu util power gtemp load procs
+    pkg=$(read_milli "$PKG_ZONE")
+    dimm=$(read_milli "$DIMM_INPUT")
+    fans=$(read_fans)
+    gpu=$(read_gpu); IFS=, read -r util power gtemp <<< "$gpu"
+    load=$(awk '{print $1}' /proc/loadavg)
+    procs=$(top_procs 3)
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$(date -Is)" "$pkg" "$dimm" "$fans" "${util:--}" "${power:--}" "${gtemp:--}" "$load" "$procs"
+
+    # Thresholds are deliberately loose — a false positive costs a few KB, a
+    # missed spike costs another round of guessing.
+    if [[ "$pkg" != "-" ]] && (( pkg >= TEMP_TRIGGER )); then
+        capture_incident "CPU package ${pkg}°C >= ${TEMP_TRIGGER}°C"
+    elif [[ "${util:--}" != "-" ]] && (( ${util%%.*} >= GPU_TRIGGER )); then
+        capture_incident "GPU util ${util}% >= ${GPU_TRIGGER}% (CPU pkg ${pkg}°C)"
+    fi
+}
+
+header() {
+    printf '# %s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        time pkg_C dimm_C fans_rpm gpu_pct gpu_W gpu_C load1 top3
+}
+
+cmd_run() {
+    mkdir -p "$STATE_DIR"
+    [[ -s "$SAMPLES" ]] || header > "$SAMPLES"
+    # First pass only primes the jiffy baseline; its top3 would be empty.
+    top_procs 3 >/dev/null
+    sleep "$INTERVAL"
+    while :; do
+        rotate "$SAMPLES"
+        emit_sample >> "$SAMPLES"
+        sleep "$INTERVAL"
+    done
+}
+
+cmd_once() {
+    header
+    top_procs 3 >/dev/null
+    sleep 1
+    emit_sample
+}
+
+cmd_report() {
+    [[ -r "$SAMPLES" ]] || { echo "no samples yet: $SAMPLES" >&2; exit 1; }
+    echo "── hottest 15 samples ──────────────────────────────────────────"
+    header
+    grep -v '^#' "$SAMPLES" | sort -t$'\t' -k2 -rn | head -15
+    echo
+    echo "── last 10 ─────────────────────────────────────────────────────"
+    grep -v '^#' "$SAMPLES" | tail -10
+    echo
+    echo "── package temp distribution ───────────────────────────────────"
+    grep -v '^#' "$SAMPLES" | awk -F'\t' '$2!="-"{
+        n++; s+=$2; if($2>max)max=$2; if(min==""||$2<min)min=$2
+        b[int($2/10)*10]++
+    } END{
+        if(!n){print "no readings"; exit}
+        printf "samples %d   min %d°C   avg %.1f°C   max %d°C\n\n", n, min, s/n, max
+        for(k=30;k<=100;k+=10) if(b[k]) printf "%3d-%3d°C  %6d  %s\n", k, k+9, b[k], substr("████████████████████████████████████████",1,int(b[k]*40/n)+1)
+    }'
+}
+
+cmd_incidents() {
+    [[ -r "$INCIDENTS" ]] || { echo "no incidents recorded — nothing has crossed a threshold"; exit 0; }
+    cat "$INCIDENTS"
+}
+
+usage() { sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; }
+
+case "${1:-}" in
+    run)       shift; while [[ $# -gt 0 ]]; do case $1 in --interval) INTERVAL=$2; shift 2;; *) shift;; esac; done; cmd_run ;;
+    once)      cmd_once ;;
+    report)    cmd_report ;;
+    incidents) cmd_incidents ;;
+    ""|-h|--help) usage ;;
+    *)         echo "unknown command: $1" >&2; usage >&2; exit 1 ;;
+esac

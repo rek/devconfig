@@ -64,6 +64,9 @@ PanelWindow {
                                       :                  "󰌐"
     readonly property color fg: up ? "#00ff88" : "#446655"
 
+    // Set by the front's hover MouseArea; gates the reel spin.
+    property bool cardHovered: false
+
     // Same anchorBelow convention as IssuesHud/PrsHud/DiskHud.
     readonly property real cardTopY:
         hud.anchorBelow ? (hud.anchorBelow.cardBottomY + hud.anchorGap)
@@ -89,6 +92,20 @@ PanelWindow {
         // FRONT — spinning reels, one per half
         // ============================================================
         front: [
+            // Reels spin on hover only (same as DiskHud's vinyl). Bound to
+            // `up` they turned continuously for as long as the keyboard was
+            // connected, and an infinite RotationAnimation repaints at the
+            // panel's full refresh rate — a permanent compositor wake-up for
+            // decoration. The reel's spool size already encodes battery %, so
+            // a still reel reads the same at a glance.
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.NoButton
+                onEntered: hud.cardHovered = true
+                onExited:  hud.cardHovered = false
+            },
+
             Text {
                 anchors { top: parent.top; left: parent.left; margins: 14 }
                 text: "▌ /media/keeb.tape"
@@ -111,8 +128,8 @@ PanelWindow {
                 anchors.verticalCenterOffset: 6
                 spacing: 60
 
-                CassetteReel { tag: "L"; pct: hud.lpct; spinning: hud.up; accent: hud.fg }
-                CassetteReel { tag: "R"; pct: hud.rpct; spinning: hud.up; accent: hud.fg }
+                CassetteReel { tag: "L"; pct: hud.lpct; spinning: hud.up && hud.cardHovered; accent: hud.fg }
+                CassetteReel { tag: "R"; pct: hud.rpct; spinning: hud.up && hud.cardHovered; accent: hud.fg }
             },
 
             Text {

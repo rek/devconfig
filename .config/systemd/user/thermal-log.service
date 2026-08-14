@@ -1,0 +1,22 @@
+[Unit]
+# Background thermal/load sampler — see bin/thermal-log for why this exists.
+# Deliberately a long-running service rather than a timer: the per-process CPU%
+# is a delta between consecutive samples, so the process has to stay alive to
+# hold the previous reading.
+Description=Thermal and load sampler
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/dev/devconfig/bin/thermal-log run --interval 30
+Restart=on-failure
+RestartSec=30
+
+# It samples sysfs and shells out to nvidia-smi once per interval; keep it out
+# of the way of anything it might otherwise perturb.
+Nice=10
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+
+[Install]
+WantedBy=default.target

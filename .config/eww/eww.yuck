@@ -2,8 +2,12 @@
 ; Anchored bottom-left of the laptop monitor on the background layer
 ; (sits below windows). Synthwave/outrun palette lives in eww.scss.
 
-(defpoll clock-time :interval "1s" :initial "--:--:--"
-  "date '+%H:%M:%S'")
+; Minutes only, polled every 20s. Seconds meant a label repaint every single
+; second forever, which kept the compositor from ever going idle — measurably
+; expensive on a high-refresh panel. 20s keeps the minute roll-over tight
+; enough to never look wrong.
+(defpoll clock-time :interval "20s" :initial "--:--"
+  "date '+%H:%M'")
 
 (defpoll clock-date :interval "60s" :initial ""
   "date '+%a %b %d  %Y'")
@@ -11,19 +15,25 @@
 (defpoll uptime :interval "30s" :initial ""
   "uptime -p | sed 's/^up //'")
 
-(defpoll cpu :interval "2s" :initial "0"
+; All the stat rows poll at 15s. These are glanceable numbers, not a profiler
+; — every poll costs a subprocess plus a label repaint, and at 1-3s that was a
+; constant background drip that kept the compositor awake.
+; Note dl/ul still sample over a 1s window (the script's argument); at 15s
+; that's a 1-second snapshot every 15s rather than a continuous average, so
+; brief transfers can slip between samples.
+(defpoll cpu :interval "15s" :initial "0"
   "~/.config/eww/scripts/cpu.sh")
 
-(defpoll ram :interval "2s" :initial "0"
+(defpoll ram :interval "15s" :initial "0"
   "free | awk '/Mem:/ {printf \"%.0f\", $3/$2 * 100}'")
 
-(defpoll temp :interval "3s" :initial "--"
+(defpoll temp :interval "15s" :initial "--"
   "~/.config/eww/scripts/cpu-temp.sh")
 
-(defpoll dl :interval "1s" :initial "0.00"
+(defpoll dl :interval "15s" :initial "0.00"
   "~/.config/eww/scripts/net-dl.sh 1")
 
-(defpoll ul :interval "1s" :initial "0.00"
+(defpoll ul :interval "15s" :initial "0.00"
   "~/.config/eww/scripts/net-ul.sh 1")
 
 ; Claude Code usage for the active 5h block. Sourced from raw transcripts in

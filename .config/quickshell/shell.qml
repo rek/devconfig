@@ -66,17 +66,31 @@ ShellRoot {
         }
 
         // === Metric pollers — same scripts the eww HUD uses. ===
-        Poller { id: cpu;  command: "~/.config/eww/scripts/cpu.sh";        interval: 2000 }
-        Poller { id: ram;  command: "free | awk '/Mem:/ {printf \"%.0f\", $3/$2 * 100}'"; interval: 2000 }
-        Poller { id: tmp;  command: "~/.config/eww/scripts/cpu-temp.sh";   interval: 3000 }
-        Poller { id: dl;   command: "~/.config/eww/scripts/net-dl.sh 1";   interval: 1000 }
-        Poller { id: ul;   command: "~/.config/eww/scripts/net-ul.sh 1";   interval: 1000 }
+        // Same LIVE convention as TopCpuHud: the front toggle picks between the
+        // fast per-metric cadence and a slow 100s background refresh, so turning
+        // it off stops the constant sampling without leaving a stale card.
+        // 15s across the board when LIVE — these are glanceable numbers, and
+        // the old 1-3s cadence was a constant subprocess + repaint drip that
+        // kept the compositor from ever idling. dl/ul still sample a 1s window
+        // (the script's argument), so they're a snapshot every 15s, not an
+        // average — brief transfers can slip between samples.
+        readonly property int liveInterval: 15000
+        readonly property int idleInterval: 100000
+        Poller { id: cpu;  command: "~/.config/eww/scripts/cpu.sh";        interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
+        Poller { id: ram;  command: "free | awk '/Mem:/ {printf \"%.0f\", $3/$2 * 100}'"; interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
+        Poller { id: tmp;  command: "~/.config/eww/scripts/cpu-temp.sh";   interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
+        Poller { id: dl;   command: "~/.config/eww/scripts/net-dl.sh 1";   interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
+        Poller { id: ul;   command: "~/.config/eww/scripts/net-ul.sh 1";   interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
         // Battery: combined "<pct>|<status>" e.g. "92|Not charging".
+        // Already slow, so LIVE doesn't slow it further — but pause it in step
+        // with everything else when the card is off.
         Poller {
             id: bat
             command: "echo \"$(cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1)|$(cat /sys/class/power_supply/BAT*/status 2>/dev/null | head -1)\""
-            interval: 10000
+            interval: live.value ? 15000 : statsHud.idleInterval
         }
+
+        readonly property color fg: live.value ? "#00ff88" : "#446655"
 
         // Derived: parse the bat poller into a percent and a short status tag.
         property int    batPct: parseInt((bat.value || "").split("|")[0]) || 0
@@ -99,6 +113,7 @@ ShellRoot {
             anchors.rightMargin: 24
             cardWidth: 380
             cardHeight: 246
+            borderColor: statsHud.fg
 
             // ============================================================
             // FRONT — /sys/proc.metrics
@@ -108,23 +123,24 @@ ShellRoot {
                     id: title
                     anchors { top: parent.top; left: parent.left; margins: 14 }
                     text: "▌ /sys/proc.metrics"
-                    color: "#00ff88"
+                    color: statsHud.fg
                     font.family: "JetBrainsMono Nerd Font"
                     font.pixelSize: 13
                     font.bold: true
                 },
 
-                Text {
+                // Was a decorative blinking "● LIVE" label; now the real
+                // watch/pause control (its own MouseArea, so clicking it
+                // doesn't fall through to the card's flip gesture).
+                ToggleButton {
+                    id: live
                     anchors { top: parent.top; right: parent.right; margins: 14 }
-                    text: "● LIVE"
-                    color: "#00ff88"
-                    font.family: "JetBrainsMono Nerd Font"
-                    font.pixelSize: 11
-                    SequentialAnimation on opacity {
-                        loops: Animation.Infinite
-                        NumberAnimation { to: 0.25; duration: 700 }
-                        NumberAnimation { to: 1.00; duration: 700 }
-                    }
+                    stateName: "stats-live"
+                    initial: "on"
+                    label: "LIVE"
+                    iconOn:  ""
+                    iconOff: ""
+                    accent: statsHud.fg
                 },
 
                 Rectangle {
@@ -147,20 +163,23 @@ ShellRoot {
 
                     StatRow {
                         label: "CPU"; suffix: "%"
+                        accent: statsHud.fg
                         value: (parseInt(cpu.value) || 0).toString()
                         showBar: true; pct: parseInt(cpu.value) || 0
                     }
                     StatRow {
                         label: "RAM"; suffix: "%"
+                        accent: statsHud.fg
                         value: (parseInt(ram.value) || 0).toString()
                         showBar: true; pct: parseInt(ram.value) || 0
                     }
-                    StatRow { label: "TMP"; suffix: "°C";    value: tmp.value || "--" }
-                    StatRow { label: "DL";  suffix: " MB/s"; value: dl.value || "0.00" }
-                    StatRow { label: "UL";  suffix: " MB/s"; value: ul.value || "0.00" }
+                    StatRow { label: "TMP"; suffix: "°C";    accent: statsHud.fg; value: tmp.value || "--" }
+                    StatRow { label: "DL";  suffix: " MB/s"; accent: statsHud.fg; value: dl.value || "0.00" }
+                    StatRow { label: "UL";  suffix: " MB/s"; accent: statsHud.fg; value: ul.value || "0.00" }
                     StatRow {
                         label: "BAT"
                         suffix: "%" + statsHud.batTag
+                        accent: statsHud.fg
                         value: statsHud.batPct.toString()
                         showBar: true; pct: statsHud.batPct
                     }
@@ -175,7 +194,7 @@ ShellRoot {
                     id: backTitle
                     anchors { top: parent.top; left: parent.left; margins: 14 }
                     text: "▌ /sys/proc.settings"
-                    color: "#00ff88"
+                    color: statsHud.fg
                     font.family: "JetBrainsMono Nerd Font"
                     font.pixelSize: 13
                     font.bold: true
@@ -191,30 +210,47 @@ ShellRoot {
                     color: "#1a3322"
                 },
 
-                // --- Settings rows. PIN is the only one for now. ---
-                Row {
+                // --- Settings rows. ---
+                Column {
                     anchors {
                         top: backDivider.bottom; left: parent.left
                         topMargin: 14; leftMargin: 14
                     }
-                    spacing: 12
+                    spacing: 14
 
-                    Text {
-                        text: "PIN ON TOP"
-                        color: "#7fffaf"
-                        font.family: "JetBrainsMono Nerd Font"
-                        font.pixelSize: 12
-                        font.bold: true
-                        anchors.verticalCenter: parent.verticalCenter
+                    Row {
+                        spacing: 12
+
+                        Text {
+                            text: "PIN ON TOP"
+                            color: "#7fffaf"
+                            font.family: "JetBrainsMono Nerd Font"
+                            font.pixelSize: 12
+                            font.bold: true
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        ToggleButton {
+                            id: pin
+                            stateName: "stats-pin"
+                            label: "PIN"
+                            iconOn:  " "
+                            iconOff: " "
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
 
-                    ToggleButton {
-                        id: pin
-                        stateName: "stats-pin"
-                        label: "PIN"
-                        iconOn:  " "
-                        iconOff: " "
-                        anchors.verticalCenter: parent.verticalCenter
+                    Text {
+                        text: "LIVE toggle is on the front, top-right"
+                        color: "#446655"
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 10
+                    }
+                    Text {
+                        text: "off = frozen snapshot, 100s background refresh"
+                        color: "#446655"
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 10
                     }
                 }
             ]

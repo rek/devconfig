@@ -12,7 +12,9 @@ import Quickshell.Io
 Item {
     id: root
 
-    // Shell command run via `bash -lc`.
+    // Shell command run via `bash -c`. Deliberately NOT a login shell: `-l`
+    // sources /etc/profile.d/, and vapoursynth.sh there spawns a Python
+    // interpreter per poll — ~2/s of pure CPU churn for an unused env var.
     property string command: ""
 
     // Poll interval in ms.
@@ -37,7 +39,7 @@ Item {
 
     Process {
         id: proc
-        command: ["bash", "-lc", root.command]
+        command: ["bash", "-c", root.command]
         running: false
         stdout: StdioCollector {
             onStreamFinished: root.value = text.trim()

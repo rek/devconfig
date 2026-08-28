@@ -142,13 +142,24 @@ report() {
 
 apply() {
     local name="$1" spec="$2"
-    hyprctl keyword monitor "${name},${spec}" >/dev/null
+    # `hyprctl keyword` only works with the legacy .conf parser; Omarchy's
+    # Quatro release switched Hyprland to the native Lua config, so live
+    # monitor changes now go through `hyprctl eval` calling hl.monitor()
+    # directly. spec is "mode,position,scale[,transform,N]".
+    local mode position scale transform_lit transform_val
+    IFS=',' read -r mode position scale transform_lit transform_val <<< "$spec"
+    local lua="hl.monitor({ output = \"${name}\", mode = \"${mode}\", position = \"${position}\", scale = ${scale}"
+    if [[ ${transform_lit:-} == transform ]]; then
+        lua+=", transform = ${transform_val}"
+    fi
+    lua+=" })"
+    hyprctl eval "$lua" >/dev/null
     RUNTIME_LINES+=("monitor = ${name},${spec}")
     echo "  $name → $spec"
 }
 
 disable_monitor() {
-    hyprctl keyword monitor "$1,disable" >/dev/null
+    hyprctl eval "hl.monitor({ output = \"$1\", disable = true })" >/dev/null
     RUNTIME_LINES+=("monitor = $1,disable")
     echo "  $1 → disabled"
 }

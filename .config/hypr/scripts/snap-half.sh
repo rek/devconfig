@@ -4,6 +4,11 @@
 # monitor retile naturally to fill the freed space.
 #
 # Usage: snap-half.sh left|right
+#
+# Uses `hyprctl eval` + hl.dsp.*, not `hyprctl dispatch <name> <args>`: Omarchy's
+# Quatro release switched Hyprland to native Lua config, and `hyprctl dispatch`
+# now tries to parse its argument as a Lua expression instead of the old
+# space-separated dispatcher syntax, so the legacy form silently errors.
 
 set -euo pipefail
 
@@ -41,11 +46,11 @@ else
 fi
 
 if [[ "$fullscreen" != "0" && "$fullscreen" != "false" ]]; then
-  hyprctl dispatch fullscreenstate 0 0
+  hyprctl eval 'hl.dispatch(hl.dsp.window.fullscreen({ action = "unset" }))' >/dev/null
 fi
 if [[ "$floating" == "false" ]]; then
-  hyprctl dispatch togglefloating
+  hyprctl eval 'hl.dispatch(hl.dsp.window.float({ action = "toggle" }))' >/dev/null
 fi
 
-hyprctl dispatch resizeactive exact "$half_w" "$logical_h"
-hyprctl dispatch moveactive exact "$target_x" "$y_top"
+hyprctl eval "hl.dispatch(hl.dsp.window.resize({ x = $half_w, y = $logical_h }))" >/dev/null
+hyprctl eval "hl.dispatch(hl.dsp.window.move({ x = $target_x, y = $y_top }))" >/dev/null

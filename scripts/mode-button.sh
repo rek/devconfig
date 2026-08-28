@@ -6,16 +6,24 @@
 # For mode <work|home>:
 #   1. Persist the mode for the eww highlight (state file + eww update for
 #      instant feedback — the defpoll re-reads the file on its next tick).
-#   2. Point the hypr/modes/current.conf symlink at the new mode.
-#   3. Run display-setup.sh with the layout this mode uses. This applies
-#      the new monitor layout via `hyprctl keyword monitor=…` AND writes
-#      the new monitors-runtime.conf — both must happen before the reload
-#      below, otherwise reload re-reads the OLD runtime conf and clobbers
-#      the new layout (the "press twice" bug).
-#   4. `hyprctl reload` so the new mode's windowrules/exec-onces apply and
-#      the (already-correct) monitors-runtime.conf is re-confirmed.
-#   5. Re-assert HUD visibility. Both `hyprctl keyword monitor=…` and
-#      reload can drop layer-shell windows; re-opening is idempotent.
+#   2. Point the hypr/modes/current.conf symlink at the new mode (legacy;
+#      nothing sources this chain since Omarchy's Lua config migration —
+#      see the note below step 4).
+#   3. `hyprctl reload` FIRST. Omarchy's Quatro release switched Hyprland to
+#      native Lua config (hyprland.lua), which re-runs monitors.lua on every
+#      reload — including its wildcard/auto fallback for any monitor not
+#      explicitly named there. Reloading before display-setup.sh means that
+#      fallback settles BEFORE we apply the real layout, instead of stomping
+#      it after (this order was the opposite under the old .conf chain,
+#      where reload used to re-source monitors-runtime.conf — that source
+#      line no longer does anything under hyprland.lua).
+#   4. Run display-setup.sh with the layout this mode uses. Applies the new
+#      monitor layout via `hyprctl eval 'hl.monitor({...})'` (the old
+#      `hyprctl keyword monitor=…` no longer works under the Lua config
+#      parser) and writes monitors-runtime.conf for reference. This runs
+#      LAST among config-affecting steps so nothing overwrites it after.
+#   5. Re-assert HUD visibility. Both the eval calls above and the reload
+#      can drop layer-shell windows; re-opening is idempotent.
 #   6. Launch any per-mode apps that aren't already running.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -38,24 +46,20 @@ mkdir -p "$(dirname "$STATE_FILE")"
 echo "$mode" > "$STATE_FILE"
 eww update mode-state="$mode" >/dev/null 2>&1 || true
 
-# 2. Switch the per-mode hypr config symlink. The reload that activates its
-#    windowrules/exec-once happens in step 4, AFTER display-setup has
-#    rewritten monitors-runtime.conf.
+# 2. Switch the per-mode hypr config symlink (legacy — see step-list note above).
 [[ -f "$MODES_DIR/$mode.conf" ]] || {
     echo "ERROR: $MODES_DIR/$mode.conf does not exist" >&2; exit 1; }
 ln -sfn "$mode.conf" "$MODES_DIR/current.conf"
 
-# 3. Monitor layout. Applies the new layout via `hyprctl keyword monitor=…`
-#    and writes monitors-runtime.conf so the reload in step 4 picks up the
-#    new layout (not the previous mode's, which used to cause the
-#    "press twice" bug). Non-fatal: if the required external isn't
-#    connected, log and continue — the rest of the mode switch is still
-#    useful, and reload will just re-apply the previous runtime layout.
-"$DISPLAY_SCRIPT" "$layout" || echo "display-setup.sh $layout failed (non-fatal)" >&2
-
-# 4. Reload so the new mode's windowrules/exec-once apply. monitors-runtime.conf
-#    is now correct, so reload won't clobber the layout from step 3.
+# 3. Reload the base Lua config first, so its wildcard monitor fallback
+#    settles before we apply the real layout in step 4 — not after.
 hyprctl reload >/dev/null
+
+# 4. Monitor layout. Applies the new layout via `hyprctl eval` and writes
+#    monitors-runtime.conf for reference. Runs LAST so nothing overwrites
+#    it. Non-fatal: if the required external isn't connected, log and
+#    continue — the rest of the mode switch is still useful.
+"$DISPLAY_SCRIPT" "$layout" || echo "display-setup.sh $layout failed (non-fatal)" >&2
 
 # 5. HUDs. Always-on set re-asserted (workaround for layer drops on monitor
 #    reconfig + reload). The tgt PR HUD now lives in quickshell and reacts to

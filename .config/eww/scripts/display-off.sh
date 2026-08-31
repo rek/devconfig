@@ -1,25 +1,16 @@
 #!/usr/bin/env bash
-# Turn off all displays without suspending the system. Steam etc. keep
-# running in the background.
+# Lock, then let the platform blank the display. Steam etc. keep running in
+# the background since this only locks (doesn't suspend).
 #
-# Why we lock first:
-#   hypridle.conf has a screensaver listener at 600s with
-#     on-timeout = pidof hyprlock || $HOME/dev/devconfig/scripts/omarchy-screensaver-synced.sh
-#   If hyprlock isn't running, the screensaver will fire while we're dark
-#   and wake the display. Locking first short-circuits that check.
-#   OMARCHY_LOCK_ONLY=true skips the lock script's own 3s brightness-off
-#   scheduler — we're doing dpms off ourselves.
+# We used to force `hyprctl dispatch dpms off` ourselves right after locking.
+# Don't: the omarchy.lock Quickshell service (Service.qml) already arms its
+# own 5s idleBlankTimer the instant a lock starts, and blanks via the same
+# path `omarchy brightness display off` uses (hl.dsp.dpms({action=disable})).
+# Firing dpms off ourselves before that timer's stabilization window elapses
+# races the session-lock surface still settling — Quickshell sees it as a
+# monitor change, re-requests the lock surface, and Hyprland powers the
+# display back on to show it. Net effect: blank for ~2s, then back to the
+# lock screen lit. Just locking and letting the built-in timer run avoids
+# the race entirely — display goes dark ~5s later instead of instantly.
 
-# Let the click event drain so it doesn't immediately wake the screen.
-sleep 0.3
-
-OMARCHY_LOCK_ONLY=true omarchy-system-lock
-
-# Wait briefly for hyprlock to actually be up, so the screensaver pidof
-# check will see it.
-for _ in {1..20}; do
-  pidof hyprlock >/dev/null && break
-  sleep 0.1
-done
-
-hyprctl dispatch dpms off
+omarchy-system-lock

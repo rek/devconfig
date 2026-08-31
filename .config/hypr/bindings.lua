@@ -8,6 +8,11 @@
 o.bind("SUPER + RETURN", "Terminal", [[uwsm-app -- xdg-terminal-exec --dir="$(omarchy-cmd-terminal-cwd)"]])
 o.bind("SUPER + ALT + RETURN", "Tmux", [[uwsm-app -- xdg-terminal-exec --dir="$(omarchy-cmd-terminal-cwd)" bash -c "tmux attach || tmux new -s Work"]])
 o.bind("SUPER + SHIFT + RETURN", "Browser", "omarchy-launch-browser")
+
+-- Overrides Omarchy Quatro's new default file-manager binds (which opened
+-- alongside these and caused two windows) so only this version runs.
+hl.unbind("SUPER + SHIFT + F")
+hl.unbind("SUPER + ALT + SHIFT + F")
 o.bind("SUPER + SHIFT + F", "File manager", "uwsm-app -- nautilus --new-window")
 o.bind("SUPER + ALT + SHIFT + F", "File manager (cwd)", [[uwsm-app -- nautilus --new-window "$(omarchy-cmd-terminal-cwd)"]])
 o.bind("SUPER + SHIFT + B", "Browser", "omarchy-launch-browser")

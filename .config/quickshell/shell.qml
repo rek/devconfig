@@ -334,10 +334,10 @@ ShellRoot {
     // Top CPU / Top memory processes — a second inner column, immediately
     // left of DiskHud, hanging off the scope HUD's bottom edge like the
     // main right column does. NOT stacked below KeyboardHud (where they
-    // used to live) — that column runs down into eww's claude-hud (fixed
-    // bottom-right), and the two semi-transparent windows overlapping made
-    // both unreadable. This column only needs to reach ~y680 at default
-    // settings, nowhere near claude-hud's ~y1170 top edge.
+    // used to live) — that column ran down into the old eww claude-hud
+    // (bottom-right; removed in favor of Omarchy's official agents bar
+    // widget), and the two semi-transparent windows overlapping made both
+    // unreadable. This column only needs to reach ~y680 at default settings.
     //
     // Off by default (back-face LIVE toggle) so the constantly-reordering
     // list doesn't sit there flickering; row count (5/10/15) is also a
@@ -352,6 +352,18 @@ ShellRoot {
     TopMemHud {
         id: topMemHud
         anchorBelow: topCpuHud
+        rightMargin: topCpuHud.rightMargin
+    }
+
+    // ============================================================
+    // Claude Code usage — session/weekly rate-limit meters, sourced from
+    // Omarchy's official omarchy-agent-usage-claude (same data the "Agents"
+    // bar plugin uses). Foot of the inner column, below TopMemHud — that
+    // column's freed space is what the old eww claude-hud vacated.
+    // ============================================================
+    ClaudeHud {
+        id: claudeHud
+        anchorBelow: topMemHud
         rightMargin: topCpuHud.rightMargin
     }
 

@@ -28,29 +28,6 @@ window {
   border-radius: 0 20px 0 0;
 }
 
-// Sibling Claude HUD: same panel, cyan-primary accents to distinguish from OUTRUN.
-.hud.claude {
-  border-left: none;
-  border-right: 4px solid $cyan;
-  border-top: 4px solid $cyan;
-  border-radius: 20px 0 0 0;
-
-  .brand         { color: $cyan;    text-shadow: 0 0 12px $cyan; }
-  .brand-sep     { color: $magenta; }
-  .brand-sub     { color: $magenta; text-shadow: 0 0 8px $magenta; }
-  .date          { color: $magenta; text-shadow: 0 0 8px $magenta; }
-  .label         { color: $cyan;    text-shadow: 0 0 8px $cyan-dim; }
-  .section-title { color: $cyan;    text-shadow: 0 0 8px $cyan-dim; }
-  .bar trough           { background-color: $cyan-dim; border-color: rgba(0, 255, 249, 0.55); }
-  .bar trough progress  { background-color: $magenta; }
-  .value.pct            { color: $cyan; text-shadow: 0 0 8px $cyan-dim; }
-
-  // "SONNET" exceeds the default .label min-width and would shrink its bar;
-  // pin the label/pct columns so the bar segment starts at a consistent x.
-  .label                { min-width: 130px; }
-  .value.pct            { min-width: 70px; }
-}
-
 .header {
   padding: 0 0 4px 0;
 }
@@ -168,13 +145,6 @@ window {
 .bar.hidden {
   min-width: 0;
   opacity: 0;
-}
-
-// Right-aligned percentage column in claude bar rows.
-.value.pct {
-  min-width: 64px;
-  color: $magenta;
-  text-shadow: 0 0 8px $magenta-dim;
 }
 
 // Launcher panel — clickable button row.

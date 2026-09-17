@@ -20,7 +20,7 @@ esac
 hyprctl reload >/dev/null
 
 # Re-open HUDs idempotently (no-op if still alive). Mirrors mode-button.sh.
-eww open-many stats-hud claude-hud top-hud >/dev/null 2>&1 || true
+eww open-many stats-hud top-hud >/dev/null 2>&1 || true
 if [[ "$(cat ~/.local/state/eww-launcher-top 2>/dev/null)" == on ]]; then
     eww open launcher-hud-top >/dev/null 2>&1 || true
 else

@@ -64,7 +64,7 @@ hyprctl reload >/dev/null
 # 5. HUDs. Always-on set re-asserted (workaround for layer drops on monitor
 #    reconfig + reload). The tgt PR HUD now lives in quickshell and reacts to
 #    mode-state.sh on its own, so there's nothing mode-specific to toggle here.
-eww open-many stats-hud claude-hud top-hud >/dev/null 2>&1 || true
+eww open-many stats-hud top-hud >/dev/null 2>&1 || true
 # launcher-hud has two variants (fg vs overlay layer) — pick by persisted state.
 if [[ "$(cat ~/.local/state/eww-launcher-top 2>/dev/null)" == on ]]; then
     eww open launcher-hud-top >/dev/null 2>&1 || true

@@ -7,8 +7,7 @@
 // not a "cycle to next" pill).
 // Pass `anchorBelow` to hang its top edge directly off another card's
 // bottom (same convention as IssuesHud) and `rightMargin` to park it in its
-// own column — e.g. a second inner column left of DiskHud, since eww's
-// claude-hud already owns the bottom-right corner further down the screen.
+// own column — e.g. a second inner column left of DiskHud.
 //
 // Data comes from scripts/top-procs.sh -> one "pid|cpu|mem|name" line per
 // process, top 15 by %CPU (this HUD slices to however many rows it wants).

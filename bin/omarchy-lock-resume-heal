@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# Watches for resume-from-sleep and self-heals Omarchy's Quickshell lock
+# screen if it comes back stuck: shell/plugins/lock/Service.qml only
+# re-attaches the lock's interactive surface from its Quickshell.onScreensChanged
+# handler, which no-ops once sessionLock.locked is already true — so if the
+# GPU reprobes outputs while locked (common right after resume), the backend
+# keeps reporting secure:true forever with nothing left listening for input.
+# omarchy-restart-shell is the normal fix, but it deliberately refuses to run
+# while secure/requested is true, which is exactly the state this bug leaves
+# behind — so this script inlines that same restart-and-relock logic instead
+# of shelling out to it. Hyprland's own session-lock protocol stays engaged
+# throughout, so this never bypasses the lock, only restarts the client
+# drawing it. Upstream: https://github.com/basecamp/omarchy/issues/9325
+
+set -u
+
+CONFIG_DIR="${OMARCHY_PATH:?}/shell"
+GRACE_SECONDS=4    # let a legitimate resume settle (GPU reprobe, plugin reload) before judging it stuck
+CONFIRM_SECONDS=5  # second look, so a slow-loading lock plugin isn't mistaken for a stuck one
+
+log() { logger -t omarchy-lock-resume-heal "$*"; }
+
+lock_field() {
+  # $1: jq filter, $2: status JSON
+  jq -r "$1" <<<"$2" 2>/dev/null
+}
+
+restart_and_relock() {
+  while timeout 5 quickshell kill -p "$CONFIG_DIR" --any-display >/dev/null 2>&1; do :; done
+  hyprctl dispatch 'hl.dsp.exec_cmd("omarchy-launch-shell")' >/dev/null
+
+  local deadline=$((SECONDS + 20))
+  while (( SECONDS < deadline )); do
+    omarchy-shell shell ping >/dev/null 2>&1 && break
+    sleep 0.2
+  done
+
+  local relock_deadline=$((SECONDS + 30)) state
+  while (( SECONDS < relock_deadline )); do
+    state=$(lock_field 'if .secure == true then "secure" elif .requested == true then "locking" else "idle" end' \
+      "$(omarchy-shell lock status 2>/dev/null)")
+    case $state in
+      secure) log "recovered: shell restarted and re-secured"; return 0 ;;
+      locking) ;;
+      *) omarchy-shell lock lock >/dev/null 2>&1 ;;
+    esac
+    sleep 0.2
+  done
+
+  log "shell restarted but did not re-secure within timeout"
+  return 1
+}
+
+heal_stuck_lock() {
+  omarchy-hyprland-session-locked || return 0
+
+  sleep "$GRACE_SECONDS"
+  local first
+  first=$(omarchy-shell lock status 2>/dev/null) || return 0
+  [[ $(lock_field '.secure or .requested' "$first") == "true" ]] || return 0
+
+  sleep "$CONFIRM_SECONDS"
+  local second
+  second=$(omarchy-shell lock status 2>/dev/null) || return 0
+
+  # Stuck iff nothing changed across the whole window: same lastEventAt (no
+  # new lock event fired), still claiming secure/requested, and not mid-PAM
+  # auth (a slow password prompt legitimately looks "unchanged" for a few
+  # seconds and must not be killed out from under someone typing into it).
+  if [[ $(lock_field '.lastEventAt' "$first") == "$(lock_field '.lastEventAt' "$second")" ]] \
+    && [[ $(lock_field '.secure or .requested' "$second") == "true" ]] \
+    && [[ $(lock_field '.authenticating' "$first") == "false" ]] \
+    && [[ $(lock_field '.authenticating' "$second") == "false" ]]; then
+    log "stale lock surface detected after resume (lastEvent=$(lock_field '.lastEvent' "$second")), restarting Omarchy shell"
+    restart_and_relock
+  fi
+}
+
+consume_resume_event() {
+  local line
+  while IFS= read -r line; do
+    if [[ $line == *"boolean false"* ]]; then
+      heal_stuck_lock
+      return 0
+    fi
+  done
+}
+
+monitor_resume_events() {
+  local monitor_fd monitor_pid status
+
+  coproc RESUME_EVENTS {
+    exec dbus-monitor --system \
+      "type='signal',sender='org.freedesktop.login1',interface='org.freedesktop.login1.Manager',member='PrepareForSleep'"
+  }
+  monitor_fd=${RESUME_EVENTS[0]}
+  monitor_pid=$RESUME_EVENTS_PID
+
+  cleanup_monitor() {
+    kill "$monitor_pid" 2>/dev/null || true
+    wait "$monitor_pid" 2>/dev/null || true
+  }
+  trap cleanup_monitor EXIT
+
+  consume_resume_event <&"$monitor_fd"
+  status=$?
+  cleanup_monitor
+  trap - EXIT
+  return "$status"
+}
+
+case ${1:-} in
+  --test)
+    # Manual trigger for testing: skips waiting for a real dbus resume event
+    # and runs the same staleness check immediately.
+    heal_stuck_lock
+    exit 0
+    ;;
+esac
+
+monitor_resume_events

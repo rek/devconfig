@@ -1,0 +1,18 @@
+[Unit]
+Description=Heal stuck Omarchy lock screen after resume
+# Mirrors omarchy-sleep-lock.service's own ordering/conditions — see
+# bin/omarchy-lock-resume-heal for why this exists.
+After=dbus.socket wayland-session-waitenv.service
+Requires=dbus.socket
+PartOf=graphical-session.target
+ConditionEnvironment=OMARCHY_PATH
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=simple
+ExecStart=%h/dev/devconfig/bin/omarchy-lock-resume-heal
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

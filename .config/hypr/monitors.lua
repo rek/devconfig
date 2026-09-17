@@ -15,6 +15,14 @@ hl.monitor({ output = "HDMI-A-1", mode = "2560x1440@144", position = "0x0", scal
 -- this live via `hyprctl keyword monitor=…` per mode.
 hl.monitor({ output = "eDP-2", mode = "2560x1600@60", position = "0x1440", scale = 1 })
 
+-- Home monitor (HKC 32E6QC), above the laptop panel. Only takes effect when
+-- DP-2 is actually connected — Hyprland ignores this line otherwise, so
+-- laptop-only sessions at home are unaffected. Without this pin, DP-2 fell
+-- through to the "auto" fallback below, which places new monitors to the
+-- side instead of above (broke `mode home`'s vertical layout on every
+-- reload/reconnect until display-setup.sh ran again).
+hl.monitor({ output = "DP-2", mode = "2560x1440@59.95", position = "0x0", scale = 1 })
+
 -- Fallback for any other/unlisted monitor.
 hl.monitor({ output = "", mode = "preferred", position = "auto", scale = omarchy_monitor_scale })
 

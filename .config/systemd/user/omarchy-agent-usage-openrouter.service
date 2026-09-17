@@ -1,0 +1,11 @@
+[Unit]
+# Writes ~/.local/state/omarchy/agents/usage/openrouter.json — see
+# bin/omarchy-agent-usage-openrouter for why this runs as our own timer
+# instead of living alongside the official collectors in $OMARCHY_PATH/bin
+# (root-owned).
+Description=OpenRouter usage collector for the Omarchy Agents panel
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/dev/devconfig/bin/omarchy-agent-usage-openrouter

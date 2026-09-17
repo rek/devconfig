@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the OpenRouter usage collector on the same cadence as Omarchy's own agent collectors
+
+[Timer]
+OnStartupSec=15
+OnUnitActiveSec=900
+AccuracySec=30
+
+[Install]
+WantedBy=timers.target

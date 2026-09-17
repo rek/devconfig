@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+"""omarchy-agent-usage-openrouter — writes a usage record for OpenRouter into
+the same directory Omarchy's Agents panel already watches
+(${XDG_STATE_HOME:-~/.local/state}/omarchy/agents/usage/openrouter.json), so
+the panel and the bar's inline chip pick it up with zero QML changes — same
+discovery mechanism as the Grok collector (see omarchy-agent-usage-grok).
+
+Auth: the key lives in this repo's .env (gitignored, never committed) as
+OPENROUTER_API_KEY_VECTOR — machine-specific, since a devconfig checkout can
+land on more than one box.
+
+v1 scope: two rate-limit windows, both confirmed against a live response
+(2026-09-17), not guessed from docs alone:
+  - "Free model requests" — daily, resets at UTC midnight (confirmed fixed
+    cadence, no need to parse a reset time out of the response).
+  - "Key spend limit" — this key carries data.limit=2 with
+    limit_reset="daily", i.e. a resetting spend cap, not a one-way prepaid
+    balance. That's why this uses a `limits` entry (resetting) rather than
+    the panel's `balance` ledger (draining, non-resetting) — see
+    Main.qml's balanceValue() for that contract. A key with limit_reset
+    null/None is a lifetime cap instead: tracked against all-time `usage`
+    with no computable reset time.
+"""
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timedelta, timezone
+
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+ENV_FILE = os.path.join(SCRIPT_DIR, "..", ".env")
+STATE_DIR = os.path.join(
+    os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")),
+    "omarchy", "agents", "usage",
+)
+OUT_FILE = os.path.join(STATE_DIR, "openrouter.json")
+
+KEY_URL = "https://openrouter.ai/api/v1/key"
+KEY_VAR = "OPENROUTER_API_KEY_VECTOR"
+
+
+def now_iso():
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def next_utc_midnight():
+    now = datetime.now(timezone.utc)
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return (start + timedelta(days=1)).isoformat().replace("+00:00", "Z")
+
+
+def base_record():
+    return {
+        "schemaVersion": 1,
+        "id": "openrouter",
+        "name": "OpenRouter",
+        "updatedAt": now_iso(),
+        "ready": False,
+        "hasLocalStats": False,
+        "hasPromptStats": False,
+        "limits": [],
+        "tierLabel": "",
+        "todayPrompts": 0,
+        "todaySessions": 0,
+        "todayTotalTokens": 0,
+        "todayTokensByModel": {},
+        "recentDays": [],
+        "totalPrompts": 0,
+        "totalSessions": 0,
+        "activeDays": 0,
+        "modelUsage": {},
+        "authHelpText": "",
+        "usageStatusText": "",
+    }
+
+
+def write_record(record):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    tmp = OUT_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(record, f)
+    os.replace(tmp, OUT_FILE)
+
+
+def waiting_for_auth(reason, retry=False):
+    record = base_record()
+    record["authHelpText"] = reason
+    if retry:
+        record["retryAdvised"] = True
+    write_record(record)
+
+
+def load_token():
+    if not os.path.exists(ENV_FILE):
+        return None
+    with open(ENV_FILE) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            if key.strip() == KEY_VAR:
+                return value.strip().strip('"').strip("'")
+    return None
+
+
+def api_get(url, token):
+    req = urllib.request.Request(
+        url, headers={"Authorization": "Bearer " + token, "Accept": "application/json"}
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return resp.status, json.loads(resp.read().decode())
+
+
+def parse_limits(data):
+    limits = []
+
+    free = data.get("free_model_daily_requests") or {}
+    free_limit = free.get("limit")
+    if free_limit:
+        limits.append({
+            "label": "Free model requests",
+            "title": "Daily",
+            "percent": min(1.0, (free.get("used") or 0) / free_limit),
+            "resetsAt": next_utc_midnight(),
+        })
+
+    key_limit = data.get("limit")
+    if key_limit:
+        reset = data.get("limit_reset")
+        if reset == "daily":
+            title, resets_at, used = "Daily", next_utc_midnight(), data.get("usage_daily") or 0
+        elif reset == "weekly":
+            title, resets_at, used = "Weekly", "", data.get("usage_weekly") or 0
+        elif reset == "monthly":
+            title, resets_at, used = "Monthly", "", data.get("usage_monthly") or 0
+        else:
+            title, resets_at, used = "Lifetime cap", "", data.get("usage") or 0
+        limits.append({
+            "label": "Key spend limit",
+            "title": title,
+            "percent": min(1.0, used / key_limit),
+            "resetsAt": resets_at,
+        })
+
+    return limits
+
+
+def main():
+    try:
+        token = load_token()
+    except OSError as e:
+        waiting_for_auth("Couldn't read .env: " + str(e))
+        return
+
+    if not token:
+        waiting_for_auth(
+            "Add %s to devconfig/.env (gitignored) to enable OpenRouter usage." % KEY_VAR
+        )
+        return
+
+    try:
+        status, body = api_get(KEY_URL, token)
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            waiting_for_auth("OpenRouter key rejected (HTTP %d). Check %s." % (e.code, KEY_VAR))
+        else:
+            waiting_for_auth("OpenRouter key check failed (HTTP %d). Will retry." % e.code, retry=True)
+        return
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        waiting_for_auth("Couldn't reach OpenRouter: %s. Will retry." % e, retry=True)
+        return
+
+    data = body.get("data") or {}
+    limits = parse_limits(data)
+    if not limits:
+        waiting_for_auth(
+            "Connected, but the key response didn't match any known shape. "
+            "This collector needs updating for an OpenRouter API change."
+        )
+        return
+
+    record = base_record()
+    record["ready"] = True
+    record["limits"] = limits
+    record["tierLabel"] = "Free tier" if data.get("is_free_tier") else "Pay-as-you-go"
+
+    write_record(record)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        waiting_for_auth("omarchy-agent-usage-openrouter crashed: %s" % e)
+        sys.exit(1)

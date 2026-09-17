@@ -1,0 +1,15 @@
+[Unit]
+Description=Cap Intel RAPL PL2 (short-term turbo boost) to reduce thermal spikes
+# Vector 16 HX AI ships with PL1=150W / PL2=220W stock, which lets the chip
+# chase 220W on light bursty load and hit 90-100C+ in seconds. Capping PL2
+# to 160W cuts spike severity without touching sustained (PL1) performance.
+# See devconfig memory: project-thermal-spike-unresolved, 2026-09-04.
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo 160000000 > /sys/class/powercap/intel-rapl:0/constraint_1_power_limit_uw'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

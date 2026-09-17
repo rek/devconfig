@@ -1,0 +1,18 @@
+[Unit]
+Description=Cap intel_pstate max_perf_pct to limit single-core turbo hot-spot spikes
+# Vector 16 HX AI hits 99-103C package temp from a SINGLE busy core hitting
+# its 5.2GHz turbo ceiling in under a second - faster than RAPL's PL1/PL2
+# averaging window can react, so power-limit capping alone (see
+# rapl-pl2-cap.service) doesn't stop it. Capping max_perf_pct to 90% caps
+# single-core turbo to ~4.8GHz, which verified-in-place kept package temp
+# at 83-90C under a sustained single-core 100% load that previously hit
+# 99-103C. See devconfig memory: project-thermal-spike-unresolved, 2026-09-07.
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo 90 > /sys/devices/system/cpu/intel_pstate/max_perf_pct'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

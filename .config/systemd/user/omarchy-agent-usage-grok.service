@@ -1,0 +1,10 @@
+[Unit]
+# Writes ~/.local/state/omarchy/agents/usage/grok.json — see
+# bin/omarchy-agent-usage-grok for why this runs as our own timer instead of
+# living alongside the official collectors in $OMARCHY_PATH/bin (root-owned).
+Description=Grok usage collector for the Omarchy Agents panel
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/dev/devconfig/bin/omarchy-agent-usage-grok

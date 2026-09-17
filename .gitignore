@@ -11,3 +11,6 @@
 
 # Serena project cache
 .serena/
+
+# Python bytecode cache
+__pycache__/

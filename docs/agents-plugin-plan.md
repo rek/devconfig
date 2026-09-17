@@ -29,16 +29,15 @@ omarchy.agents`), heavily modified:
   }
   ```
 
-**⚠️ Nothing above is version-controlled.** `~/.config/omarchy/` is not
-tracked by this devconfig repo at all (`git ls-files | grep '^\.config/omarchy'`
-returns nothing). The plugin clone and `shell.json` edits exist only as live
-files on this machine. If this machine were reimaged tonight, all of it would
-be gone. Worth fixing before doing much more — either bring
-`~/.config/omarchy/plugins/adam.agents/` into this repo (e.g. under
-`config-omarchy/` or similar, symlinked into place the way `.config/systemd/user/`
-already is), or jump straight to the standalone repo Adam mentioned wanting
-eventually (see "Later, not urgent" below). Either works; just don't leave it
-un-backed-up much longer.
+**✅ Resolved 2026-09-17:** the plugin now lives in its own public repo,
+[github.com/rek/omarchy-agents-plus](https://github.com/rek/omarchy-agents-plus)
+(MIT). `~/.config/omarchy/plugins/adam.agents/` is that repo's actual git
+checkout (not a copy, not a symlink at its root — Omarchy's own
+`omarchy plugin validate` rejects a symlink there), with
+`~/dev/omarchy-agents-plus` symlinked back to it for convenient editing.
+`shell.json`'s bar settings are still local-only (by design — they're
+per-machine config, not plugin code). See "Publishing" below for what it
+takes to list this on omarchyplugins.com.
 
 **What's tracked in devconfig (uncommitted, nothing pushed):**
 - `bin/omarchy-agent-usage-grok` — the Grok collector (below).
@@ -99,16 +98,34 @@ against the clone's, even when the original is fully disabled. Don't rely on
 it for automation; a real click bypasses this fine (`BarIconButton.onPressed`
 calls `root.toggle()` directly, no IPC involved).
 
-## Task 1 — OpenRouter collector
+## Task 1 — OpenRouter collector ✅ done 2026-09-17
+
+`bin/omarchy-agent-usage-openrouter` is written, tested against a live
+response, and running on its own timer
+(`.config/systemd/user/omarchy-agent-usage-openrouter.{service,timer}`).
+
+**Key location ended up different from the plan below:** Adam keeps it in
+this repo's `.env` (gitignored — see the "secrets" fix noted at the end of
+this doc) as `OPENROUTER_API_KEY_VECTOR`, not
+`~/.config/openrouter/api_key`. The collector reads it from there
+(`bin/omarchy-agent-usage-openrouter`'s `load_token()`), resolved relative
+to the script's own path so it survives the repo living at a different
+checkout location.
+
+**Live response differed from the docs-only shape assumed below** (this is
+exactly the kind of drift the plan called out as a risk): the key tested
+against carries `"limit": 2, "limit_reset": "daily"` — a spend cap that
+resets daily, not a lifetime prepaid balance. That's why the collector
+emits it as a second `limits[]` entry (percent + resetsAt, same shape as
+the free-model-requests entry) instead of the panel's `balance` ledger
+object, which is for non-resetting prepaid credit (see `balanceValue()` in
+`Main.qml`). A key with `limit_reset: null` would fall back to treating
+`limit` as that kind of lifetime cap instead — see `parse_limits()`.
+
+The rest of this section is the original plan, kept for reference:
 
 **Goal:** show OpenRouter's free-model daily request usage (and remaining
 credit balance) in the bar/panel, same as Claude/Codex/Grok.
-
-**Blocked on:** Adam needs to put his OpenRouter API key in a file on disk —
-do NOT ask for it in chat. Suggested path: `~/.config/openrouter/api_key`
-(plain text, just the key, `chmod 600`). Check for it first
-(`test -f ~/.config/openrouter/api_key`); if it's not there, ask Adam where
-he put it or ask him to create it.
 
 **Confirmed API details** (verified against OpenRouter's own docs this
 session, not guessed):
@@ -218,13 +235,19 @@ not a bug on our end). He wasn't sure what the $30 plan actually is.
   limit (checked `docs.x.ai/console/billing` and
   `docs.x.ai/console/faq/billing` directly — neither names a reset day).
 
+**Update 2026-09-17 — Adam confirmed:** he checked `console.x.ai`, and it
+doesn't show a reset time either. That's the API/Console side we already
+knew was capped and undated — he has **not** yet checked `grok.com/settings`
+(the separate SuperGrok subscription UI), so it's still unknown whether that
+side would show a real reset countdown for the $30/mo plan. Not investigated
+further this session — deprioritized in favor of the plugin repo extraction
+and OpenRouter collector.
+
 **Plan:**
 
-1. Ask Adam directly (don't guess): "When you check usage in a browser, is
-   that at `console.x.ai` (Billing/Credits) or somewhere under
-   `grok.com/settings` or the Grok app itself?" — these are different
-   products with different data, and it changes what's actually knowable
-   here.
+1. ~~Ask Adam directly~~ Done — see update above. Still need his answer on
+   whether he's ever checked `grok.com/settings` specifically (not just
+   `console.x.ai`).
 2. If Adam has a SuperGrok subscription (the $30/mo thing) separate from the
    Team API account whose credits are exhausted, that subscription almost
    certainly has its OWN weekly usage pool, checkable either in the app UI or
@@ -248,43 +271,53 @@ not a bug on our end). He wasn't sure what the $30 plan actually is.
    same Grok record, or is this fundamentally not machine-readable (in which
    case, say so plainly in the panel rather than guessing).
 
-## Later, not urgent
+## Publishing to omarchyplugins.com — not done yet
 
-- Adam wants this whole plugin eventually pushed to a clean, generic, public
-  GitHub repo ("one day I'll be able to publish it") — his words suggest the
-  *repo* could exist soon but the actual public *announcement*/publish step
-  is for later. Worth a quick check-in on timing/visibility (public now vs.
-  private-until-ready) before just pushing something world-readable.
-  Whatever the answer, extracting `~/.config/omarchy/plugins/adam.agents/`
-  into a standalone repo would also solve the "nothing here is
-  version-controlled" problem above in one move — could make sense to do
-  this *before* OpenRouter/Grok-Business, not after, so the new work lands
-  in the real repo from the start instead of needing to be moved later.
-  Ask Adam which order he'd rather do this in.
-- `EST. COST TODAY` section in the popup is currently dead code for every
-  real provider (only the old mock-data path ever set `estCostToday`) — either
-  wire it up with real per-model pricing or remove it; leaving it as an
-  always-invisible section is the kind of half-finished thing worth cleaning
-  up once there's a natural moment.
-- `bin/__pycache__/` should be deleted and `__pycache__/` added to
-  `.gitignore` before any of this gets committed.
+Confirmed 2026-09-17 against Omarchy's own manual
+(`basecamp/omarchy`, `manual/32-shell-plugins.md`): there's no vetting or
+bundling step for third-party plugins, and the `omarchy.*` id namespace is
+reserved for first-party ones only, so this plugin was never going to become
+"official" in that sense. The actual mechanics:
+
+1. Public git repo with a `manifest.json` at its root — **done**
+   (github.com/rek/omarchy-agents-plus).
+2. `omarchy plugin validate ./my-plugin` should pass — **confirmed clean**
+   against the live checkout.
+3. List it at [omarchyplugins.com](https://omarchyplugins.com), the
+   community directory — **not done**. Worth browsing existing listings
+   first to see how others present theirs before submitting.
+
+Also still open, from before this got prioritized:
+- The README (`README.md` in the new repo) is still the original clone's —
+  doesn't mention it's a fork, doesn't have install instructions
+  (`omarchy plugin add https://github.com/rek/omarchy-agents-plus.git`).
+  Worth a pass before submitting to the directory.
+- `EST. COST TODAY` section in the popup is still dead code for every real
+  provider (only the old mock-data path ever set `estCostToday`) — either
+  wire it up with real per-model pricing or remove it.
 
 ## Quick reference
 
 ```
-# Live (untracked) plugin source:
+# Plugin source — own repo now, checked out directly at the plugin path
+# (not a copy, not a symlink at its root — see "Resolved 2026-09-17" above):
 ~/.config/omarchy/plugins/adam.agents/{Panel.qml,manifest.json,Agent.qml,Main.qml}
-~/.config/omarchy/shell.json                    # bar layout + this plugin's settings
+~/dev/omarchy-agents-plus   # symlink back to the line above, for convenience
+# github.com/rek/omarchy-agents-plus                # origin remote
+~/.config/omarchy/shell.json                    # bar layout + this plugin's settings (still local-only, not in the plugin repo)
 
-# Tracked in devconfig (uncommitted):
+# Tracked in devconfig (committed):
 bin/omarchy-agent-usage-grok
-.config/systemd/user/omarchy-agent-usage-grok.{service,timer}
+bin/omarchy-agent-usage-openrouter
+.config/systemd/user/omarchy-agent-usage-{grok,openrouter}.{service,timer}
+.env                                             # gitignored — OPENROUTER_API_KEY_VECTOR lives here
 
 # Usage data both the panel and bar read (provider-agnostic, file-watched):
-~/.local/state/omarchy/agents/usage/{claude,codex,fireworks,grok}.json
+~/.local/state/omarchy/agents/usage/{claude,codex,fireworks,grok,openrouter}.json
 
 # Test a collector standalone:
 ~/dev/devconfig/bin/omarchy-agent-usage-grok && cat ~/.local/state/omarchy/agents/usage/grok.json | python3 -m json.tool
+~/dev/devconfig/bin/omarchy-agent-usage-openrouter && cat ~/.local/state/omarchy/agents/usage/openrouter.json | python3 -m json.tool
 
 # Apply a QML/manifest edit:
 omarchy restart shell   # NOT just editing-and-waiting — see visibility bug note above
@@ -294,11 +327,12 @@ journalctl --user --since "10 seconds ago" | grep -i error   # sanity check, ign
                                                               # be used" WARN spam and the
                                                               # portal-registration WARN
 
-# Manage the Grok timer:
-systemctl --user status omarchy-agent-usage-grok.timer
-systemctl --user start omarchy-agent-usage-grok.service   # run it once, right now
+# Manage a collector's timer (same pattern for grok / openrouter):
+systemctl --user status omarchy-agent-usage-openrouter.timer
+systemctl --user start omarchy-agent-usage-openrouter.service   # run it once, right now
 ```
 
-No commits have been made for any of this yet — everything is sitting in the
-working tree (and, for the plugin itself, entirely outside git). Commit only
-when explicitly asked, per Adam's standing preference.
+**Status as of 2026-09-17:** everything above is committed to devconfig
+(7 commits from the initial cleanup pass + the OpenRouter collector), and
+the plugin repo is committed and pushed to GitHub. devconfig's own commits
+are local-only (ahead of `origin/main`) — pushed only when Adam asks.

@@ -277,3 +277,11 @@ claude-local() {
   claude --model "$model" "$@"
 }
 
+
+# >>> graphify cache credential (scripts/place-graphify-cache-credential.sh) >>>
+[ -f "/home/adam/.config/graphify/cache-credential.env" ] && . "/home/adam/.config/graphify/cache-credential.env"
+# <<< graphify cache credential (scripts/place-graphify-cache-credential.sh) <<<
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"

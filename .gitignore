@@ -14,3 +14,7 @@
 
 # Python bytecode cache
 __pycache__/
+
+# Secrets — never commit
+.env
+.env.*

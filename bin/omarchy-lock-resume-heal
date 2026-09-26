@@ -16,8 +16,12 @@
 set -u
 
 CONFIG_DIR="${OMARCHY_PATH:?}/shell"
-GRACE_SECONDS=4    # let a legitimate resume settle (GPU reprobe, plugin reload) before judging it stuck
-CONFIRM_SECONDS=5  # second look, so a slow-loading lock plugin isn't mistaken for a stuck one
+GRACE_SECONDS=2    # let a legitimate resume settle (GPU reprobe, plugin reload) before judging it stuck
+CONFIRM_SECONDS=2  # second look, so a slow-loading lock plugin isn't mistaken for a stuck one
+# Shortened from 4/5s on 2026-09-18: this now fires on ~every resume (6/6 since
+# it was enabled), not just occasionally, so the original conservative margin
+# just adds visible dead-screen time before the fix kicks in. authenticating
+# guard below still protects a real in-progress password entry either way.
 
 log() { logger -t omarchy-lock-resume-heal "$*"; }
 

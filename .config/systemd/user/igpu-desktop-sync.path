@@ -1,0 +1,13 @@
+[Unit]
+Description=Re-sync browser launchers when shortcuts are added or packages update them
+
+[Path]
+# New PWA shortcuts written by the browser
+PathChanged=%h/.local/share/applications
+# Browser package upgrades replacing the system entries
+PathChanged=/usr/share/applications/google-chrome.desktop
+PathChanged=/usr/share/applications/com.google.Chrome.desktop
+PathChanged=/usr/share/applications/chromium.desktop
+
+[Install]
+WantedBy=default.target

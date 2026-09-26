@@ -1,0 +1,10 @@
+[Unit]
+Description=Point browser launchers at the Intel iGPU video-decode wrappers
+# See bin/igpu-launch for why, bin/igpu-desktop-sync for what it rewrites.
+
+[Service]
+Type=oneshot
+ExecStart=%h/dev/devconfig/bin/igpu-desktop-sync
+
+[Install]
+WantedBy=default.target

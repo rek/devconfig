@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# Keeps browser .desktop launchers pointed at the bin/igpu-launch wrappers, so
+# Chrome/Chromium always start with video decode on the Intel iGPU no matter
+# which launcher happens to start them first (only the first launch matters —
+# later ones hand off to the already-running browser process).
+#
+# - Browser entries from /usr/share/applications are copied to the user's
+#   applications dir with Exec= rewritten. They're regenerated from the system
+#   copy each run so package updates (new actions, translations) flow through.
+# - Web-app (PWA) shortcuts that the browser writes itself are rewritten in
+#   place. Browsers create these whenever a site is installed as an app, which
+#   is why this runs from a systemd path unit rather than once by hand.
+#
+# Idempotent: files are only written when their content would change.
+
+set -euo pipefail
+
+APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+WRAPPERS="$HOME/.local/bin"
+
+# system .desktop id -> binary its Exec= lines launch
+declare -A BROWSERS=(
+  [google-chrome.desktop]=/usr/bin/google-chrome-stable
+  [com.google.Chrome.desktop]=/usr/bin/google-chrome-stable
+  [chromium.desktop]=/usr/bin/chromium
+)
+
+changed=0
+
+write_if_changed() {
+  # $1: destination, stdin: desired content
+  local desired
+  desired=$(cat)
+  if [[ ! -f $1 ]] || [[ $(cat "$1") != "$desired" ]]; then
+    printf '%s\n' "$desired" >"$1"
+    echo "igpu-desktop-sync: updated $(basename "$1")"
+    changed=1
+  fi
+}
+
+for id in "${!BROWSERS[@]}"; do
+  src="/usr/share/applications/$id"
+  [[ -f $src ]] || continue
+  bin=${BROWSERS[$id]}
+  sed "s|^Exec=$bin|Exec=$WRAPPERS/$(basename "$bin")-igpu|" "$src" |
+    write_if_changed "$APPS/$id"
+done
+
+# PWA shortcuts: chrome-<appid>-<profile>.desktop / chromium-<appid>-<profile>.desktop.
+# Also strips the older `env LIBVA_DRIVER_NAME=iHD` prefix this replaced.
+for f in "$APPS"/chrome-*.desktop "$APPS"/chromium-*.desktop; do
+  [[ -f $f ]] || continue
+  sed -E \
+    -e "s#^Exec=(env LIBVA_DRIVER_NAME=iHD )?(/opt/google/chrome/google-chrome|/usr/bin/google-chrome-stable) #Exec=$WRAPPERS/google-chrome-stable-igpu #" \
+    -e "s#^Exec=(env LIBVA_DRIVER_NAME=iHD )?/usr/bin/chromium #Exec=$WRAPPERS/chromium-igpu #" \
+    "$f" | write_if_changed "$f"
+done
+
+if ((changed)) && command -v update-desktop-database >/dev/null; then
+  update-desktop-database "$APPS" 2>/dev/null || true
+fi

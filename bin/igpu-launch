@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Runs a program with VA-API video decode forced onto the Intel iGPU.
+#
+# This laptop is MUX-less: the built-in panel is wired only to the Intel iGPU,
+# and the NVIDIA dGPU has no display output. hypr/envs.conf sets
+# LIBVA_DRIVER_NAME=nvidia globally (needed for gaming), so browsers decode
+# video on the dGPU and then have to ship every frame across to the iGPU for
+# scanout — that cross-GPU hop is what makes Chrome video stutter and hang.
+# Decoding on the iGPU (iHD, from intel-media-driver) keeps the whole path on
+# the chip that drives the panel.
+#
+# Invoked through a symlink named <program>-igpu (e.g. chromium-igpu,
+# google-chrome-stable-igpu) and takes no options of its own, so it can stand
+# in as the first word of a .desktop Exec= line — omarchy-launch-browser
+# treats that first word as the browser binary. bin/igpu-desktop-sync points
+# the browser .desktop files at these symlinks.
+
+set -euo pipefail
+
+name=$(basename "$0")
+target=${name%-igpu}
+if [[ $target == "$name" ]]; then
+  echo "igpu-launch: invoke through a <program>-igpu symlink, not directly" >&2
+  exit 64
+fi
+
+export LIBVA_DRIVER_NAME=iHD
+exec "$target" "$@"

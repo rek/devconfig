@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""omarchy-agent-usage-byteplus — writes a usage record for BytePlus's
+ModelArk Coding Plan into the same directory Omarchy's Agents panel already
+watches (${XDG_STATE_HOME:-~/.local/state}/omarchy/agents/usage/byteplus.json)
+— same discovery mechanism as the Grok/OpenRouter collectors.
+
+Auth is different from Grok/OpenRouter: Coding Plan usage isn't reachable
+with a plain API key. BytePlus's own docs say plan quota "cannot be used for
+API calls", and the underlying control-plane endpoint
+(/open/GetCodingPlanUsage on ark.ap-southeast-1.byteplusapi.com) rejects a
+bearer key outright (confirmed live, 2026-09-17: HTTP 400
+InvalidAuthorization, then InvalidCredential — never a working shape). It's
+only exposed through arkcli's own SSO-derived session (`arkcli auth login`,
+a one-time browser flow) — same shape as the official Claude collector
+needing a signed-in CLI, not a stored secret. This shells out to
+`arkcli usage plan` rather than reimplementing BytePlus's internal request
+signing.
+
+The SSO session is short-lived (~1 week per `arkcli auth status`), so a
+periodic "run `arkcli auth login` again" prompt here is expected, not a bug.
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+STATE_DIR = os.path.join(
+    os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")),
+    "omarchy", "agents", "usage",
+)
+OUT_FILE = os.path.join(STATE_DIR, "byteplus.json")
+
+# systemd user services don't reliably inherit an interactive shell's PATH
+# (bun's bin dir in particular has needed adding elsewhere in this repo), so
+# fall back to known install locations before giving up.
+ARKCLI_CANDIDATES = [
+    os.path.expanduser("~/.bun/bin/arkcli"),
+    os.path.expanduser("~/.local/bin/arkcli"),
+]
+
+PERIOD_TITLES = {"session": "Session", "weekly": "Weekly", "monthly": "Monthly"}
+
+
+def now_iso():
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def base_record():
+    return {
+        "schemaVersion": 1,
+        "id": "byteplus",
+        "name": "BytePlus",
+        "updatedAt": now_iso(),
+        "ready": False,
+        "hasLocalStats": False,
+        "hasPromptStats": False,
+        "limits": [],
+        "tierLabel": "",
+        "todayPrompts": 0,
+        "todaySessions": 0,
+        "todayTotalTokens": 0,
+        "todayTokensByModel": {},
+        "recentDays": [],
+        "totalPrompts": 0,
+        "totalSessions": 0,
+        "activeDays": 0,
+        "modelUsage": {},
+        "authHelpText": "",
+        "usageStatusText": "",
+    }
+
+
+def write_record(record):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    tmp = OUT_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(record, f)
+    os.replace(tmp, OUT_FILE)
+
+
+def waiting_for_auth(reason, retry=False):
+    record = base_record()
+    record["authHelpText"] = reason
+    if retry:
+        record["retryAdvised"] = True
+    write_record(record)
+
+
+def find_arkcli():
+    found = shutil.which("arkcli")
+    if found:
+        return found
+    for candidate in ARKCLI_CANDIDATES:
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+def run_arkcli(binary, *args):
+    result = subprocess.run(
+        [binary, *args, "--format", "json"],
+        capture_output=True, text=True, timeout=20,
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
+def parse_periods(periods):
+    limits = []
+    for period in periods:
+        percent = period.get("percent")
+        if percent is None:
+            continue
+        label_key = str(period.get("label") or "").lower()
+        title = PERIOD_TITLES.get(label_key, label_key.title() or "Plan")
+        limits.append({
+            "label": title,
+            "title": title,
+            "percent": min(1.0, max(0.0, float(percent) / 100.0)),
+            "resetsAt": period.get("reset_at") or "",
+        })
+    return limits
+
+
+def main():
+    binary = find_arkcli()
+    if not binary:
+        waiting_for_auth("Install BytePlus's CLI: npm i -g @byteplus/ark-cli")
+        return
+
+    try:
+        code, out, err = run_arkcli(binary, "usage", "plan", "--product", "coding-plan")
+    except subprocess.TimeoutExpired:
+        waiting_for_auth("arkcli usage plan timed out. Will retry.", retry=True)
+        return
+    except OSError as e:
+        waiting_for_auth("Couldn't run arkcli: %s" % e)
+        return
+
+    if code != 0:
+        try:
+            _, status_out, _ = run_arkcli(binary, "auth", "status")
+            status = json.loads(status_out) if status_out else {}
+        except Exception:
+            status = {}
+        if not status.get("logged_in"):
+            waiting_for_auth("Run `arkcli auth login` to authenticate BytePlus.")
+        else:
+            waiting_for_auth(
+                "arkcli usage plan failed: %s" % (err.strip() or "unknown error"),
+                retry=True,
+            )
+        return
+
+    try:
+        body = json.loads(out)
+    except json.JSONDecodeError as e:
+        waiting_for_auth("arkcli usage plan returned unparseable output: %s" % e)
+        return
+
+    items = body.get("items") or []
+    plan = next((i for i in items if i.get("product") == "coding-plan"), None)
+    if plan is None:
+        waiting_for_auth("No coding-plan item in arkcli's response. Are you subscribed?")
+        return
+
+    if plan.get("error"):
+        record = base_record()
+        record["usageStatusText"] = str(plan["error"])
+        write_record(record)
+        return
+
+    if not plan.get("subscribed"):
+        waiting_for_auth("Not subscribed to the BytePlus Coding Plan.")
+        return
+
+    limits = parse_periods(plan.get("periods") or [])
+    if not limits:
+        waiting_for_auth(
+            "Connected, but the plan response didn't match any known shape. "
+            "This collector needs updating for an arkcli change."
+        )
+        return
+
+    record = base_record()
+    record["ready"] = True
+    record["limits"] = limits
+    record["tierLabel"] = "Coding Plan"
+
+    write_record(record)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        waiting_for_auth("omarchy-agent-usage-byteplus crashed: %s" % e)
+        sys.exit(1)

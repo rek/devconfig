@@ -61,6 +61,9 @@ takes to list this on omarchyplugins.com.
   team is over its **API/Console monthly spending limit** right now (see
   Task 2 — this is very likely a *different* limit than the SuperGrok
   subscription pool, and the current label is probably misleading).
+- **BytePlus** — real, via a new `omarchy-agent-usage-byteplus` collector
+  (below). Coding Plan quota, three windows (Session/Weekly/Monthly), Session
+  labeled to bind as the bar's headline window same as Claude.
 
 **Key architectural fact learned this session:** the panel/bar auto-discovers
 *any* `<id>.json` file dropped into
@@ -211,6 +214,64 @@ session, not guessed):
    visibility-bug note above. A restart is the reliable way to verify).
 6. No QML changes needed — Main.qml picks up the new file automatically.
 
+## Task 3 — BytePlus Coding Plan collector ✅ done 2026-09-17
+
+`bin/omarchy-agent-usage-byteplus` is written, tested against a live
+subscription, and running on its own timer
+(`.config/systemd/user/omarchy-agent-usage-byteplus.{service,timer}`).
+
+**Auth turned out fundamentally different from Grok/OpenRouter's pattern**,
+worth knowing before touching this collector again: BytePlus's Coding Plan
+usage/quota is **not** reachable with a plain API key at all. Confirmed live
+this session:
+- The underlying control-plane action
+  (`https://ark.ap-southeast-1.byteplusapi.com/?Action=GetCodingPlanUsage`)
+  rejects a bearer API key outright — `InvalidAuthorization`, then
+  `InvalidCredential` on a header-name variant. It wants BytePlus's internal
+  Volcengine-style signed-request auth (SSO-derived STS), not a token swap.
+- BytePlus's own docs state plan quota "cannot be used for API calls."
+- The data-plane host (`ark.ap-southeast.bytepluses.com/api/v3`, which real
+  inference calls like `/responses` use fine with a plain `Bearer` key) is a
+  red herring for this: it returns **HTTP 200 with an empty body for any
+  path at all**, including ones that don't exist — confirmed by hitting a
+  deliberately bogus path and getting the identical response. Don't trust a
+  200 from that host as proof a guessed path is real.
+
+**What actually works:** BytePlus ships a CLI, `arkcli` (`npm i -g
+@byteplus/ark-cli`, also on GitHub as `byteplus-sdk/ark-cli` — though that
+repo only holds the bundled Agent Skill docs, not the CLI's actual signing
+implementation, so don't expect to read your way to the raw request format
+there). Adam installed it and ran `arkcli auth login` (one-time interactive
+browser SSO) himself — this collector shells out to `arkcli usage plan
+--product coding-plan --format json` rather than reimplementing BytePlus's
+signing. Same shape as the official Claude collector needing a signed-in
+CLI, not a new stored secret.
+
+**Known limitation:** the SSO session is short-lived — `arkcli auth status`
+showed roughly a **1-week** expiry (`sts_expires_at_ms`) on this login. When
+it lapses, the collector detects `logged_in: false` and writes
+`authHelpText: "Run \`arkcli auth login\` to authenticate BytePlus."` rather
+than failing silently, but there's no auto-refresh — Adam will need to
+re-run `arkcli auth login` roughly weekly. Worth watching whether that cadence
+gets old enough to be worth automating (it can't be fully unattended; it's a
+real browser SSO flow).
+
+**Response shape** (`arkcli usage plan --product coding-plan --format json`,
+personal Coding Plan): `items[0].periods[]`, each `{label, percent, reset_at?}`
+— `percent` is 0–100 (this collector divides by 100 for the panel's 0–1
+convention, same as Grok/OpenRouter). `reset_at` is RFC3339 in Beijing time
+(UTC+08:00); omitted entirely on a window with no data yet (this machine's
+`session` period had `percent: 0` and no `reset_at` at test time — expected,
+not a bug). Periods are relabeled `Session`/`Weekly`/`Monthly` and the
+`Session` one is given an explicit `title` field so Panel.qml's `title ===
+"Session"` headline-binding logic picks it up directly, same mechanism
+already used for Claude's "current window" behavior (see `limitWindow()` in
+Panel.qml — an explicit `title` always wins over label-text guessing).
+
+No dedicated `assets/byteplus.svg` was added — Grok doesn't have one either
+(only Claude/Codex/Fireworks do), so BytePlus falling back to the generic bar
+glyph is consistent with existing precedent, not a gap.
+
 ## Task 2 — the "$30 Grok Business thing"
 
 Adam mentioned having a flat-rate ~$30/month Grok plan that is **not** the
@@ -307,17 +368,19 @@ Also still open, from before this got prioritized:
 ~/.config/omarchy/shell.json                    # bar layout + this plugin's settings (still local-only, not in the plugin repo)
 
 # Tracked in devconfig (committed):
-bin/omarchy-agent-usage-grok
-bin/omarchy-agent-usage-openrouter
-.config/systemd/user/omarchy-agent-usage-{grok,openrouter}.{service,timer}
+bin/omarchy-agent-usage-{grok,openrouter,byteplus}
+.config/systemd/user/omarchy-agent-usage-{grok,openrouter,byteplus}.{service,timer}
 .env                                             # gitignored — OPENROUTER_API_KEY_VECTOR lives here
+                                                  # (byteplus needs no secret here — see Task 3, it's arkcli's own SSO session)
 
 # Usage data both the panel and bar read (provider-agnostic, file-watched):
-~/.local/state/omarchy/agents/usage/{claude,codex,fireworks,grok,openrouter}.json
+~/.local/state/omarchy/agents/usage/{claude,codex,fireworks,grok,openrouter,byteplus}.json
 
 # Test a collector standalone:
 ~/dev/devconfig/bin/omarchy-agent-usage-grok && cat ~/.local/state/omarchy/agents/usage/grok.json | python3 -m json.tool
 ~/dev/devconfig/bin/omarchy-agent-usage-openrouter && cat ~/.local/state/omarchy/agents/usage/openrouter.json | python3 -m json.tool
+~/dev/devconfig/bin/omarchy-agent-usage-byteplus && cat ~/.local/state/omarchy/agents/usage/byteplus.json | python3 -m json.tool
+arkcli auth login   # re-run this when byteplus.json's authHelpText says the SSO session lapsed (~weekly)
 
 # Apply a QML/manifest edit:
 omarchy restart shell   # NOT just editing-and-waiting — see visibility bug note above
@@ -327,12 +390,13 @@ journalctl --user --since "10 seconds ago" | grep -i error   # sanity check, ign
                                                               # be used" WARN spam and the
                                                               # portal-registration WARN
 
-# Manage a collector's timer (same pattern for grok / openrouter):
+# Manage a collector's timer (same pattern for grok / openrouter / byteplus):
 systemctl --user status omarchy-agent-usage-openrouter.timer
 systemctl --user start omarchy-agent-usage-openrouter.service   # run it once, right now
 ```
 
 **Status as of 2026-09-17:** everything above is committed to devconfig
-(7 commits from the initial cleanup pass + the OpenRouter collector), and
-the plugin repo is committed and pushed to GitHub. devconfig's own commits
+(7 commits from the initial cleanup pass + the OpenRouter collector, plus the
+BytePlus collector), and the plugin repo is committed and pushed to GitHub.
+devconfig's own commits
 are local-only (ahead of `origin/main`) — pushed only when Adam asks.

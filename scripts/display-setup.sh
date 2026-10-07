@@ -114,6 +114,24 @@ classify() {
             fi
         done
     fi
+
+    # Only use PHIL_MODE if the Philips is actually offering it right now.
+    # Through some docks/cables it only advertises up to 1920x1080, and asking
+    # for 2560x1440 anyway makes the atomic commit fail (EINVAL) in a loop:
+    # nothing gets applied (not even the portrait transform) and aquamarine
+    # can crash the session. Fall back to its best advertised mode instead.
+    if [[ -n $PHILIPS ]]; then
+        local modes
+        modes=$(echo "$json" | jq -r --arg n "$PHILIPS" \
+            '.[] | select(.name == $n) | .availableModes[]')
+        if [[ -n $modes ]] && ! grep -qF "$PHIL_MODE" <<< "$modes"; then
+            local best=${modes%%$'\n'*}
+            echo "  Philips not offering $PHIL_MODE — using ${best%Hz}" >&2
+            PHIL_MODE=${best%Hz}
+            PHIL_W=${PHIL_MODE%%x*}
+            PHIL_H=${PHIL_MODE#*x}; PHIL_H=${PHIL_H%@*}
+        fi
+    fi
 }
 
 # Resolve a monitor's dimension, falling back to known constants if hyprctl

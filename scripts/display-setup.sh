@@ -243,12 +243,27 @@ mode_desk() {
 }
 
 mode_home() {
-    [[ -z $LAPTOP || -z $PHILIPS ]] && {
-        echo "ERROR: home mode needs laptop + external monitor" >&2; exit 1; }
+    # Any single external works here, not just the Philips: home isn't always
+    # the same desk (e.g. a 1920x1080 Acer). Prefer the Philips if present,
+    # else the first unrecognised external at its own preferred mode and
+    # current size — hard-coding 1440 for a 1080 panel leaves a dead gap
+    # between it and the laptop that the cursor can't cross.
+    [[ -z $LAPTOP ]] && { echo "ERROR: no laptop detected" >&2; exit 1; }
+    local ext ext_mode mw mh
+    if [[ -n $PHILIPS ]]; then
+        ext=$PHILIPS; ext_mode=$PHIL_MODE; mw=$PHIL_W; mh=$PHIL_H
+    elif (( ${#OTHERS[@]} > 0 )); then
+        ext=${OTHERS[0]}; ext_mode=preferred
+        mw=$(dim "$ext" w); mh=$(dim "$ext" h)
+        OTHERS=("${OTHERS[@]:1}")
+    else
+        echo "  (no external monitor detected — laptop only)"
+        [[ -n $GLASSES ]] && disable_monitor "$GLASSES"
+        apply "$LAPTOP" "${LAPTOP_MODE},0x0,1"
+        return
+    fi
 
     local lw; lw=$(dim "$LAPTOP" w)
-    local mw=$PHIL_W
-    local mh=$PHIL_H
 
     # Center the narrower monitor horizontally; the wider one anchors at x=0.
     local mon_x=0 laptop_x=0
@@ -258,7 +273,7 @@ mode_home() {
         laptop_x=$(( (mw - lw) / 2 ))
     fi
 
-    apply "$PHILIPS" "${PHIL_MODE},${mon_x}x0,1"
+    apply "$ext" "${ext_mode},${mon_x}x0,1"
     apply "$LAPTOP"  "${LAPTOP_MODE},${laptop_x}x${mh},1"
 
     [[ -n $GLASSES ]] && disable_monitor "$GLASSES"

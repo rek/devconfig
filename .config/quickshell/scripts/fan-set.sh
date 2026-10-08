@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Set the MSI fan profile from the launcher's FAN group.
 #
-#   fan-set.sh silent|auto   set fan_mode and drop cooler boost (boost
+#   fan-set.sh silent|auto|advanced
+#                            set fan_mode and drop cooler boost (boost
 #                            overrides the mode, so picking a mode while
 #                            boosting would otherwise look like a no-op)
 #   fan-set.sh boost         toggle cooler boost (fans pinned to max)
@@ -21,7 +22,7 @@ fail() {
     || fail "No write access to msi-ec — install etc/udev/rules.d/99-msi-ec-fan.rules."
 
 case "${1:-}" in
-    silent|auto)
+    silent|auto|advanced)
         echo off > "$EC/cooler_boost"
         echo "$1" > "$EC/fan_mode"
         ;;
@@ -33,7 +34,7 @@ case "${1:-}" in
         fi
         ;;
     *)
-        echo "usage: $0 silent|auto|boost" >&2
+        echo "usage: $0 silent|auto|advanced|boost" >&2
         exit 2
         ;;
 esac

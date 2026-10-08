@@ -118,7 +118,8 @@ PanelWindow {
                         command: "~/.config/eww/scripts/launch.sh ~/.config/quickshell/scripts/headphone-toggle.sh phones" }
                 }
 
-                // MSI fan profile (msi-ec). SILENT/AUTO pick fan_mode; BOOST
+                // MSI fan profile (msi-ec). SILENT/AUTO/HIGH pick fan_mode (HIGH = the
+                // firmware's "advanced" curve, between AUTO and BOOST); BOOST
                 // toggles cooler boost, which overrides the mode while on.
                 // Tag shows live RPM of the faster fan.
                 ButtonGroup {
@@ -128,6 +129,8 @@ PanelWindow {
                         command: "~/.config/quickshell/scripts/fan-set.sh silent"; onDone: fanState.refresh() }
                     LaunchButton { icon: "󰈐"; label: "AUTO"; active: !hud.fanBoost && hud.fanMode === "auto";
                         command: "~/.config/quickshell/scripts/fan-set.sh auto"; onDone: fanState.refresh() }
+                    LaunchButton { icon: "󰈸"; label: "HIGH"; active: !hud.fanBoost && hud.fanMode === "advanced";
+                        command: "~/.config/quickshell/scripts/fan-set.sh advanced"; onDone: fanState.refresh() }
                     LaunchButton { icon: "󱩷"; label: "BOOST"; active: hud.fanBoost;
                         command: "~/.config/quickshell/scripts/fan-set.sh boost"; onDone: fanState.refresh() }
                 }

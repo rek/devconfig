@@ -1,0 +1,8 @@
+# msi-ec fan control: let wheel write fan_mode + cooler_boost, so the
+# quickshell launcher's FAN buttons (scripts/fan-set.sh) work without sudo.
+# The attributes appear when the driver binds, hence ACTION=="bind".
+#
+# Install:  sudo cp etc/udev/rules.d/99-msi-ec-fan.rules /etc/udev/rules.d/
+#           sudo udevadm control --reload
+#           sudo udevadm trigger --action=bind /sys/devices/platform/msi-ec
+ACTION=="bind", SUBSYSTEM=="platform", KERNEL=="msi-ec", RUN+="/bin/sh -c 'cd /sys%p && chgrp wheel fan_mode cooler_boost && chmod g+w fan_mode cooler_boost'"

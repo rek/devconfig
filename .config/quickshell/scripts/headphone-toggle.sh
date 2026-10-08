@@ -30,8 +30,27 @@ current_mode() {
     fi
 }
 
+# Make sure PipeWire is actually routing to the laptop codec: the card on its
+# Speaker profile (the Headphones profile is permanently unavailable), and the
+# Speaker sink as default (it can fall back to HDMI when the profile drifts).
+route_to_codec() {
+    local card sink
+    card=$(pactl list short cards | awk '/skl_hda_dsp_generic/ {print $2; exit}')
+    [[ -n "$card" ]] || return 0
+    pactl set-card-profile "$card" "HiFi (HDMI1, HDMI2, HDMI3, Mic1, Mic2, Speaker)" 2>/dev/null || true
+    sink=$(pactl list short sinks | awk '/HiFi__Speaker__sink/ {print $2; exit}')
+    [[ -n "$sink" ]] || return 0
+    pactl set-default-sink "$sink" 2>/dev/null || true
+    pactl set-sink-mute "$sink" 0 2>/dev/null || true
+    local i
+    for i in $(pactl list short sink-inputs | cut -f1); do
+        pactl move-sink-input "$i" "$sink" 2>/dev/null || true
+    done
+}
+
 apply() {
     local mode=$1
+    route_to_codec
     # Fixed baseline — soft-mixer means nothing else manages these.
     amixer -q -c "$CARD" sset Master 100% unmute
     amixer -q -c "$CARD" sset Speaker 100%

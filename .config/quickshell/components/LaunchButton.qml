@@ -24,6 +24,10 @@ Rectangle {
     property string command: ""
     property bool active: false
 
+    // Emitted when `command` exits — lets a caller re-poll state right away
+    // instead of waiting out its Poller interval.
+    signal done()
+
     property bool hovered: false
 
     implicitWidth:  Math.max(84, col.implicitWidth + 28)   // min-width 84 from SCSS
@@ -90,5 +94,5 @@ Rectangle {
         onClicked: { proc.command = ["bash", "-lc", root.command]; proc.running = true }
     }
 
-    Process { id: proc; running: false }
+    Process { id: proc; running: false; onExited: root.done() }
 }

@@ -1,27 +1,29 @@
 #!/bin/bash
 
-# Watches for resume-from-sleep and self-heals Omarchy's Quickshell lock
-# screen if it comes back stuck: shell/plugins/lock/Service.qml only
-# re-attaches the lock's interactive surface from its Quickshell.onScreensChanged
-# handler, which no-ops once sessionLock.locked is already true — so if the
-# GPU reprobes outputs while locked (common right after resume), the backend
-# keeps reporting secure:true forever with nothing left listening for input.
-# omarchy-restart-shell is the normal fix, but it deliberately refuses to run
-# while secure/requested is true, which is exactly the state this bug leaves
-# behind — so this script inlines that same restart-and-relock logic instead
-# of shelling out to it. Hyprland's own session-lock protocol stays engaged
-# throughout, so this never bypasses the lock, only restarts the client
-# drawing it. Upstream: https://github.com/basecamp/omarchy/issues/9325
+# Watches for resume-from-sleep and recovers Omarchy's Quickshell lock screen
+# if it comes back unable to take a password.
+#
+# History: this originally assumed Service.qml failed to re-attach the lock
+# surface after a screen change, and restarted the shell whenever the lock
+# looked idle 4s after resume. Upstream review (omacom/omarchy#9325, comment
+# 6079435738) showed Quickshell re-attaches surfaces itself, and an idle-but-
+# healthy lock looks identical — so that version fired on every resume and was
+# itself the "crash then reload" seen after waking. The likelier wedge is
+# fcitx5: the password field routes every key through fcitx5-qt, which
+# swallows keys while waiting on a fcitx5 that has stopped answering D-Bus.
+#
+# So now: log evidence at resume and leave the lock alone, give the user
+# WAIT_SECONDS to unlock normally, then restart fcitx5 if it isn't answering,
+# and only restart the shell as a last resort. omarchy-restart-shell refuses
+# to run while the lock is secure, so that fallback inlines its logic.
+# Hyprland's session-lock protocol stays engaged throughout.
 
 set -u
 
 CONFIG_DIR="${OMARCHY_PATH:?}/shell"
-GRACE_SECONDS=2    # let a legitimate resume settle (GPU reprobe, plugin reload) before judging it stuck
-CONFIRM_SECONDS=2  # second look, so a slow-loading lock plugin isn't mistaken for a stuck one
-# Shortened from 4/5s on 2026-09-18: this now fires on ~every resume (6/6 since
-# it was enabled), not just occasionally, so the original conservative margin
-# just adds visible dead-screen time before the fix kicks in. authenticating
-# guard below still protects a real in-progress password entry either way.
+WAIT_SECONDS=60          # time to unlock normally before we touch anything
+FCITX_SETTLE_SECONDS=15  # after restarting fcitx5, time for typing to work before the shell restart
+POLL_SECONDS=2
 
 log() { logger -t omarchy-lock-resume-heal "$*"; }
 
@@ -56,29 +58,61 @@ restart_and_relock() {
   return 1
 }
 
+fcitx_state() {
+  # answering | wedged (running but not replying) | absent
+  if busctl --user --timeout=3 call org.fcitx.Fcitx5 /controller \
+      org.fcitx.Fcitx.Controller1 CurrentInputMethod >/dev/null 2>&1; then
+    echo answering
+  elif pgrep -u "$UID" -x fcitx5 >/dev/null; then
+    echo wedged
+  else
+    echo absent
+  fi
+}
+
+still_locked() {
+  [[ $(lock_field '.secure or .requested' "$(omarchy-shell lock status 2>/dev/null)") == "true" ]]
+}
+
+# Waits up to $1 seconds for the user to unlock. Returns 0 once unlocked.
+wait_for_unlock() {
+  local deadline=$((SECONDS + $1)) status
+  while (( SECONDS < deadline )); do
+    status=$(omarchy-shell lock status 2>/dev/null) || return 0
+    [[ $(lock_field '.secure or .requested' "$status") == "true" ]] || return 0
+    # Mid-PAM: keep waiting rather than letting the deadline cut it off.
+    [[ $(lock_field '.authenticating' "$status") == "true" ]] && deadline=$((deadline + POLL_SECONDS))
+    sleep "$POLL_SECONDS"
+  done
+  return 1
+}
+
 heal_stuck_lock() {
   omarchy-hyprland-session-locked || return 0
 
-  sleep "$GRACE_SECONDS"
-  local first
-  first=$(omarchy-shell lock status 2>/dev/null) || return 0
-  [[ $(lock_field '.secure or .requested' "$first") == "true" ]] || return 0
+  local resumed=$SECONDS
+  log "resume: locked, fcitx5=$(fcitx_state), lock=$(omarchy-shell lock status 2>/dev/null) — waiting ${WAIT_SECONDS}s for a normal unlock"
 
-  sleep "$CONFIRM_SECONDS"
-  local second
-  second=$(omarchy-shell lock status 2>/dev/null) || return 0
-
-  # Stuck iff nothing changed across the whole window: same lastEventAt (no
-  # new lock event fired), still claiming secure/requested, and not mid-PAM
-  # auth (a slow password prompt legitimately looks "unchanged" for a few
-  # seconds and must not be killed out from under someone typing into it).
-  if [[ $(lock_field '.lastEventAt' "$first") == "$(lock_field '.lastEventAt' "$second")" ]] \
-    && [[ $(lock_field '.secure or .requested' "$second") == "true" ]] \
-    && [[ $(lock_field '.authenticating' "$first") == "false" ]] \
-    && [[ $(lock_field '.authenticating' "$second") == "false" ]]; then
-    log "stale lock surface detected after resume (lastEvent=$(lock_field '.lastEvent' "$second")), restarting Omarchy shell"
-    restart_and_relock
+  if wait_for_unlock "$WAIT_SECONDS"; then
+    log "unlocked normally after $((SECONDS - resumed))s, nothing to heal"
+    return 0
   fi
+
+  local fcitx
+  fcitx=$(fcitx_state)
+  log "still locked after ${WAIT_SECONDS}s, fcitx5=$fcitx"
+  if [[ $fcitx == wedged ]]; then
+    log "fcitx5 not answering D-Bus, restarting omarchy-fcitx5.service"
+    systemctl --user restart omarchy-fcitx5.service
+    if wait_for_unlock "$FCITX_SETTLE_SECONDS"; then
+      log "unlocked after fcitx5 restart — fcitx5 wedge confirmed"
+      return 0
+    fi
+  fi
+
+  still_locked || return 0
+  log "still locked, falling back to restarting the Omarchy shell"
+  restart_and_relock
 }
 
 consume_resume_event() {

@@ -173,7 +173,20 @@ ShellRoot {
                         value: (parseInt(ram.value) || 0).toString()
                         showBar: true; pct: parseInt(ram.value) || 0
                     }
-                    StatRow { label: "TMP"; suffix: "°C";    accent: statsHud.fg; value: tmp.value || "--" }
+                    StatRow {
+                        label: "TMP"; suffix: "°C"
+                        accent: statsHud.fg
+                        value: tmp.value || "--"
+                        // Heat colour: green < 60, yellow < 75, orange < 90, red above.
+                        valueColor: {
+                            const t = parseFloat(tmp.value);
+                            return isNaN(t) ? "#7fffaf"
+                                 : t < 60 ? "#7fffaf"
+                                 : t < 75 ? "#ffe14d"
+                                 : t < 90 ? "#ff9a2e"
+                                 :          "#ff3b3b";
+                        }
+                    }
                     StatRow { label: "DL";  suffix: " MB/s"; accent: statsHud.fg; value: dl.value || "0.00" }
                     StatRow { label: "UL";  suffix: " MB/s"; accent: statsHud.fg; value: ul.value || "0.00" }
                     StatRow {
@@ -373,6 +386,14 @@ ShellRoot {
     // ============================================================
     Launcher {
         id: launcher
+    }
+
+    // ============================================================
+    // Clock card — bottom-left of eDP-2. Replaces the eww stats-hud window,
+    // whose full-card input region sat over the launcher's left edge.
+    // ============================================================
+    ClockHud {
+        id: clockHud
     }
 
 }

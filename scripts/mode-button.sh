@@ -89,12 +89,12 @@ launch_if_missing() {
 case "$mode" in
     work)
         launch_if_missing vivaldi-stable vivaldi
-        launch_if_missing google-chrome   google-chrome-stable
+        launch_if_missing google-chrome   "$HOME/.local/bin/google-chrome-stable-igpu"
         launch_if_missing Alacritty       alacritty
         ;;
     home)
         launch_if_missing vivaldi-stable vivaldi
-        launch_if_missing google-chrome   google-chrome-stable
+        launch_if_missing google-chrome   "$HOME/.local/bin/google-chrome-stable-igpu"
         ;;
 esac
 

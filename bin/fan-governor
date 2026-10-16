@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Software fan governor for MSI laptops (msi-ec).
+#
+# The firmware's "auto" fan curve ramps late: the CPU can hit 90°C before the
+# fans move. While fan_mode is "auto", this turns cooler boost on above
+# HOT_C and off again below COOL_C. The gap between the two stops flapping.
+#
+# It only ever switches off a boost it switched on itself, so a boost you set
+# by hand from the launcher is left alone. In silent/advanced mode it does
+# nothing (and releases any boost it holds).
+#
+# Started by the launcher's AUTO button and stopped by the other fan buttons
+# (scripts/fan-set.sh), as the user unit fan-governor.service.
+# Needs write access to msi-ec: etc/udev/rules.d/99-msi-ec-fan.rules.
+set -uo pipefail
+
+EC=/sys/devices/platform/msi-ec
+HOT_C=${FAN_GOVERNOR_HOT_C:-82}
+COOL_C=${FAN_GOVERNOR_COOL_C:-68}
+INTERVAL=${FAN_GOVERNOR_INTERVAL:-10}
+
+[[ -w $EC/cooler_boost ]] || { echo "fan-governor: no write access to $EC/cooler_boost" >&2; exit 1; }
+
+ours=0   # 1 while a boost we turned on is running
+
+release() {
+    (( ours )) && echo off > "$EC/cooler_boost"
+    ours=0
+}
+trap 'release; exit 0' INT TERM
+
+# Sleep in the background and wait on it: bash only runs a trap once the
+# foreground command ends, so a plain `sleep` would delay a stop by up to
+# INTERVAL seconds (and stall the launcher button that asked for it).
+while sleep "$INTERVAL" & wait $!; do
+    mode=$(<"$EC/fan_mode")
+    boost=$(<"$EC/cooler_boost")
+    temp=$(<"$EC/cpu/realtime_temperature")
+
+    # Someone else turned boost off: forget our claim.
+    [[ $boost == on ]] || ours=0
+
+    if [[ $mode != auto ]]; then
+        release
+    elif [[ $boost != on && $temp -ge $HOT_C ]]; then
+        echo on > "$EC/cooler_boost" && ours=1
+    elif (( ours )) && [[ $temp -le $COOL_C ]]; then
+        release
+    fi
+done

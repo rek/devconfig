@@ -1,0 +1,14 @@
+[Unit]
+# Turns cooler boost on when the CPU runs hot in "auto" fan mode — see
+# bin/fan-governor for why the firmware curve isn't enough. Not enabled at
+# login: the launcher's AUTO button starts it, the other fan buttons stop it.
+Description=MSI fan governor
+
+[Service]
+Type=simple
+ExecStart=%h/dev/devconfig/bin/fan-governor
+Restart=on-failure
+RestartSec=10
+
+# Wakes every 10 seconds to read three sysfs files; keep it cheap.
+Nice=10

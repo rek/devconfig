@@ -15,8 +15,8 @@
 set -uo pipefail
 
 EC=/sys/devices/platform/msi-ec
-HOT_C=${FAN_GOVERNOR_HOT_C:-82}
-COOL_C=${FAN_GOVERNOR_COOL_C:-68}
+HOT_C=${FAN_GOVERNOR_HOT_C:-80}
+COOL_C=${FAN_GOVERNOR_COOL_C:-72}
 INTERVAL=${FAN_GOVERNOR_INTERVAL:-10}
 
 [[ -w $EC/cooler_boost ]] || { echo "fan-governor: no write access to $EC/cooler_boost" >&2; exit 1; }

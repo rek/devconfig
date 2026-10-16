@@ -8,8 +8,8 @@ compinit
 # Auto-start zellij (replaced byobu)
 # Only auto-attach when opening a fresh terminal — skip if zellij isn't installed, if already
 # inside a multiplexer (zellij/tmux/screen/byobu), or in VS Code, Guake, ddterm, embedded terms.
-# If another terminal is already attached to a zellij session, create a fresh per-terminal session
-# instead of piling onto `default` (so each monitor/window gets its own state).
+# Always attach to one fixed session, `main`. If it exited (reboot/crash), attach --create
+# resurrects it from the serialized layout, so tabs survive restarts.
 # ddterm detection: an env var set only on the ghostty -e launch command (DDTERM=1)
 # doesn't survive new tabs opened natively inside that window (ghostty spawns those
 # tabs' shells fresh, without re-running -e). Ask Hyprland for the current window's
@@ -20,11 +20,7 @@ if [[ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]]; then
   _win_class=$(hyprctl activewindow -j 2>/dev/null | jq -r '.class // empty' 2>/dev/null)
 fi
 if [[ -x ~/.local/bin/zellij && -z "$TMUX" && -z "$STY" && -z "$BYOBU_BACKEND" && -z "$ZELLIJ" && -z "$ZELLIJ_SESSION_NAME" && "$TERM_PROGRAM" != "vscode" && "$TERM_PROGRAM" != "guake" && -z "$INSIDE_EMACS" && -z "$VIMRUNTIME" && -z "$GUAKE" && "$_parent_proc" != "guake" && -z "$DDTERM" && "$_win_class" != "dropdown.term" ]]; then
-  if pgrep -f 'zellij attach' >/dev/null 2>&1; then
-    exec ~/.local/bin/zellij attach --create "term-$$"
-  else
-    exec ~/.local/bin/zellij attach --create default
-  fi
+  exec ~/.local/bin/zellij attach --create main
 fi
 unset _parent_proc _win_class
 

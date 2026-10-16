@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
-# Software fan governor for MSI laptops (msi-ec).
+# Software fan governor for MSI laptops (msi-ec): as quiet as possible, loud
+# only when the CPU needs it.
 #
-# The firmware's "auto" fan curve ramps late: the CPU can hit 90°C before the
-# fans move. While fan_mode is "auto", this turns cooler boost on above
-# HOT_C and off again below COOL_C. The gap between the two stops flapping.
+# The EC offers three fan gears (measured on 15M3EMS1.109, under load):
+#   silent    ~3500 RPM
+#   auto      ~4000 RPM   (the firmware curve; ramps late, CPU can hit 90°C)
+#   advanced  ~6400 RPM   (EC takes ~30s to spin up to it)
+# There is no speed knob, so this picks a gear every INTERVAL seconds:
+#   - up to advanced when the CPU has been hot for a while, or is warm and
+#     still climbing (so the slow spin-up starts before it gets hot). Short
+#     spikes are averaged out;
+#   - back down only after a full MIN_HOLD in the louder gear, so the fans
+#     don't surge up and down (a changing pitch is more annoying than a
+#     steady loud one).
 #
-# It only ever switches off a boost it switched on itself, so a boost you set
-# by hand from the launcher is left alone. In silent/advanced mode it does
-# nothing (and releases any boost it holds).
+# It only drives fan_mode while it owns it: in "auto" or the gear it set
+# itself. If you pick a mode by hand it stays out of the way, and it never
+# touches cooler_boost.
 #
 # Started by the launcher's AUTO button and stopped by the other fan buttons
 # (scripts/fan-set.sh), as the user unit fan-governor.service.
@@ -15,36 +24,65 @@
 set -uo pipefail
 
 EC=/sys/devices/platform/msi-ec
-HOT_C=${FAN_GOVERNOR_HOT_C:-80}
-COOL_C=${FAN_GOVERNOR_COOL_C:-72}
-INTERVAL=${FAN_GOVERNOR_INTERVAL:-10}
+QUIET_C=${FAN_GOVERNOR_QUIET_C:-62}     # below this: silent gear
+HOT_C=${FAN_GOVERNOR_HOT_C:-78}         # at/above this: advanced gear
+RISE_C=${FAN_GOVERNOR_RISE_C:-70}       # warm enough to act on a fast climb...
+RISE_RATE=${FAN_GOVERNOR_RISE_RATE:-5}  # ...of this many °C over the 60s window
+COOL_C=${FAN_GOVERNOR_COOL_C:-70}       # advanced -> auto at/below this
+MIN_HOLD=${FAN_GOVERNOR_MIN_HOLD:-60}   # seconds before stepping down a gear
+INTERVAL=${FAN_GOVERNOR_INTERVAL:-5}
+WINDOW=$(( 60 / INTERVAL ))     # readings kept: 60s of history
 
-[[ -w $EC/cooler_boost ]] || { echo "fan-governor: no write access to $EC/cooler_boost" >&2; exit 1; }
+[[ -w $EC/fan_mode ]] || { echo "fan-governor: no write access to $EC/fan_mode" >&2; exit 1; }
 
-ours=0   # 1 while a boost we turned on is running
+gear=auto   # the gear we last set
+since=0     # SECONDS when we entered it
+history=()  # recent temps, one per tick
 
-release() {
-    (( ours )) && echo off > "$EC/cooler_boost"
-    ours=0
+mean() {
+    local sum=0 n=$#
+    for t; do sum=$(( sum + t )); done
+    echo $(( sum / n ))
 }
-trap 'release; exit 0' INT TERM
+
+set_gear() {
+    [[ $1 == "$gear" ]] && return
+    echo "$1" > "$EC/fan_mode" && { gear=$1; since=$SECONDS; }
+}
+
+trap 'set_gear auto; exit 0' INT TERM
 
 # Sleep in the background and wait on it: bash only runs a trap once the
 # foreground command ends, so a plain `sleep` would delay a stop by up to
 # INTERVAL seconds (and stall the launcher button that asked for it).
 while sleep "$INTERVAL" & wait $!; do
     mode=$(<"$EC/fan_mode")
-    boost=$(<"$EC/cooler_boost")
     temp=$(<"$EC/cpu/realtime_temperature")
 
-    # Someone else turned boost off: forget our claim.
-    [[ $boost == on ]] || ours=0
+    # Judge the trend, not single readings: the CPU spikes 20°C for a few
+    # seconds on light work, and the fans take ~30s to respond, so chasing
+    # spikes just makes noise. "now" is the mean of the newest 4 readings,
+    # "then" the mean of the oldest 4 (over a 60s window).
+    history+=("$temp")
+    (( ${#history[@]} > WINDOW )) && history=("${history[@]: -WINDOW}")
+    n=${#history[@]}
+    k=$(( n < 4 ? n : 4 ))
+    now=$(mean "${history[@]:n-k:k}")
+    then=$(mean "${history[@]:0:k}")
+    rise=$(( now - then ))
 
-    if [[ $mode != auto ]]; then
-        release
-    elif [[ $boost != on && $temp -ge $HOT_C ]]; then
-        echo on > "$EC/cooler_boost" && ours=1
-    elif (( ours )) && [[ $temp -le $COOL_C ]]; then
-        release
+    # Not ours (user picked silent/advanced by hand): leave it alone.
+    [[ $mode != auto && $mode != "$gear" ]] && continue
+    [[ $mode == auto ]] && gear=auto
+
+    held=$(( SECONDS - since ))
+    if (( now >= HOT_C || (now >= RISE_C && rise >= RISE_RATE) )); then
+        set_gear advanced
+    elif [[ $gear == advanced ]]; then
+        (( now <= COOL_C && held >= MIN_HOLD )) && set_gear auto
+    elif (( now < QUIET_C )); then
+        (( held >= MIN_HOLD )) && set_gear silent
+    else
+        [[ $gear == silent ]] && set_gear auto
     fi
 done

@@ -177,6 +177,8 @@ ShellRoot {
                         label: "TMP"; suffix: "°C"
                         accent: statsHud.fg
                         value: tmp.value || "--"
+                        showBar: true; pct: parseFloat(tmp.value) || 0
+                        barColor: valueColor
                         // Heat colour: green < 60, yellow < 75, orange < 90, red above.
                         valueColor: {
                             const t = parseFloat(tmp.value);

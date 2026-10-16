@@ -21,6 +21,7 @@ Item {
     // Theming. Match the PinToggle defaults so a HUD reads as one piece.
     property color accent:     "#00ff88"
     property color valueColor: "#7fffaf"
+    property color barColor:   accent   // bar fill; defaults to accent
     property string fontFamily: "JetBrainsMono Nerd Font"
 
     // === Layout ===
@@ -62,7 +63,7 @@ Item {
                 margins: 2
             }
             width: Math.max(0, (barFrame.width - 4) * Math.min(100, Math.max(0, root.pct)) / 100)
-            color: root.accent
+            color: root.barColor
             Behavior on width {
                 NumberAnimation { duration: 350; easing.type: Easing.OutCubic }
             }

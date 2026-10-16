@@ -296,9 +296,9 @@ plugins {
 load_plugins {
     zellij:link
     // agent state on tab names (github.com/rek/zellij-agent-status)
-    "file:/home/adam/.config/zellij/plugins/zellij-agent-status.wasm" {
-        notify "waiting done"
-    }
+    // no config: it must match the Alt+a MessagePlugin block exactly, or that
+    // keybind starts a second instance and the two fight over tab names
+    "file:/home/adam/.config/zellij/plugins/zellij-agent-status.wasm"
 }
 web_client {
     font "monospace"

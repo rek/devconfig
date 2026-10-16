@@ -16,16 +16,19 @@ jq '
   def cmd($state):
     "[ -z \"$ZELLIJ\" ] || timeout 2 zellij pipe --name agent-status -- \"$ZELLIJ_PANE_ID:" + $state + "\" </dev/null >/dev/null 2>&1 # zellij-agent-status";
   def ours: ((.command // "") | contains("zellij-agent"));
-  def add_hook($event; $state):
+  def add_hook($event; $state; $matcher):
     .hooks[$event] = (
       ((.hooks[$event] // [])
         | map(.hooks |= map(select(ours | not)))
         | map(select((.hooks | length) > 0)))
-      + [{hooks: [{type: "command", command: cmd($state)}]}]);
+      + [{hooks: [{type: "command", command: cmd($state)}]}
+         + (if $matcher == "" then {} else {matcher: $matcher} end)]);
+  def add_hook($event; $state): add_hook($event; $state; "");
   .hooks = (.hooks // {})
   | add_hook("UserPromptSubmit"; "working")
   | add_hook("PostToolUse";      "working")
-  | add_hook("Notification";     "waiting")
+  # only real prompts: the idle reminder would turn a finished agent back to waiting
+  | add_hook("Notification";     "waiting"; "permission_prompt|elicitation_dialog")
   | add_hook("Stop";             "done")
   | add_hook("SessionEnd";       "end")
 ' "$SETTINGS" > "$tmp"

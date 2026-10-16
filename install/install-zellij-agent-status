@@ -1,0 +1,10 @@
+#!/bin/bash
+# Install the zellij-agent-status plugin (prebuilt wasm from GitHub releases).
+set -e
+
+DEST="$HOME/.config/zellij/plugins"
+mkdir -p "$DEST"
+echo "Installing zellij-agent-status plugin..."
+curl -sS -L -f "https://github.com/rek/zellij-agent-status/releases/latest/download/zellij-agent-status.wasm" \
+  -o "$DEST/zellij-agent-status.wasm"
+echo "Installed: $DEST/zellij-agent-status.wasm"

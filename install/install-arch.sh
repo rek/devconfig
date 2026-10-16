@@ -163,8 +163,9 @@ else
   bash "$REPO_ROOT/install/install-zellij"
 fi
 
-# Claude Code hooks that drive zellij tab agent-status (bin/zellij-agent)
-header "Installing Claude Code zellij hooks..."
+# zellij-agent-status plugin + the Claude Code hooks that drive it
+header "Installing zellij-agent-status..."
+bash "$REPO_ROOT/install/install-zellij-agent-status"
 bash "$REPO_ROOT/install/install-claude-hooks"
 
 # ---------------------------------------------------------------------------

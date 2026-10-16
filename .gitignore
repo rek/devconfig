@@ -18,3 +18,4 @@ __pycache__/
 # Secrets — never commit
 .env
 .env.*
+.config/zellij/plugins/

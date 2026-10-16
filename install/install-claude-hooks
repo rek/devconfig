@@ -1,25 +1,27 @@
 #!/bin/bash
-# Wire Claude Code hooks to bin/zellij-agent so zellij tabs show agent state.
-# Idempotent: merges into ~/.claude/settings.json, skipping hooks already present.
+# Wire Claude Code hooks to the zellij-agent-status plugin so zellij tabs show agent state.
+# Idempotent: merges into ~/.claude/settings.json, replacing any earlier zellij-agent hooks.
 set -e
 
 SETTINGS="$HOME/.claude/settings.json"
 command -v jq >/dev/null || { echo "jq required"; exit 1; }
 mkdir -p "$(dirname "$SETTINGS")"
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
-
-if ! grep -q 'zellij-agent hook' "$SETTINGS"; then
-  cp "$SETTINGS" "$SETTINGS.bak"
-fi
+cp "$SETTINGS" "$SETTINGS.bak"
 
 tmp=$(mktemp)
 jq '
+  # outside zellij: no-op. Inside: broadcast to the plugin; timeout so a missing
+  # plugin can never hang the agent, stdin closed so the pipe never waits on it.
+  def cmd($state):
+    "[ -z \"$ZELLIJ\" ] || timeout 2 zellij pipe --name agent-status -- \"$ZELLIJ_PANE_ID:" + $state + "\" </dev/null >/dev/null 2>&1 # zellij-agent-status";
+  def ours: ((.command // "") | contains("zellij-agent"));
   def add_hook($event; $state):
-    .hooks[$event] = ((.hooks[$event] // []) as $cur
-      | if any($cur[]?.hooks[]?; (.command // "") | contains("zellij-agent hook"))
-        then $cur
-        else $cur + [{hooks: [{type: "command", command: ("zellij-agent hook " + $state)}]}]
-        end);
+    .hooks[$event] = (
+      ((.hooks[$event] // [])
+        | map(.hooks |= map(select(ours | not)))
+        | map(select((.hooks | length) > 0)))
+      + [{hooks: [{type: "command", command: cmd($state)}]}]);
   .hooks = (.hooks // {})
   | add_hook("UserPromptSubmit"; "working")
   | add_hook("PostToolUse";      "working")

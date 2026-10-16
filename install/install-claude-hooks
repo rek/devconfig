@@ -1,0 +1,31 @@
+#!/bin/bash
+# Wire Claude Code hooks to bin/zellij-agent so zellij tabs show agent state.
+# Idempotent: merges into ~/.claude/settings.json, skipping hooks already present.
+set -e
+
+SETTINGS="$HOME/.claude/settings.json"
+command -v jq >/dev/null || { echo "jq required"; exit 1; }
+mkdir -p "$(dirname "$SETTINGS")"
+[ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
+
+if ! grep -q 'zellij-agent hook' "$SETTINGS"; then
+  cp "$SETTINGS" "$SETTINGS.bak"
+fi
+
+tmp=$(mktemp)
+jq '
+  def add_hook($event; $state):
+    .hooks[$event] = ((.hooks[$event] // []) as $cur
+      | if any($cur[]?.hooks[]?; (.command // "") | contains("zellij-agent hook"))
+        then $cur
+        else $cur + [{hooks: [{type: "command", command: ("zellij-agent hook " + $state)}]}]
+        end);
+  .hooks = (.hooks // {})
+  | add_hook("UserPromptSubmit"; "working")
+  | add_hook("PostToolUse";      "working")
+  | add_hook("Notification";     "waiting")
+  | add_hook("Stop";             "done")
+  | add_hook("SessionEnd";       "end")
+' "$SETTINGS" > "$tmp"
+mv "$tmp" "$SETTINGS"
+echo "Claude Code zellij hooks installed in $SETTINGS"

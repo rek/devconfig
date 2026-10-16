@@ -139,6 +139,10 @@ else
   bash "$REPO_ROOT/install/install-zellij"
 fi
 
+# Claude Code hooks that drive zellij tab agent-status (bin/zellij-agent)
+header "Installing Claude Code zellij hooks..."
+bash "$REPO_ROOT/install/install-claude-hooks"
+
 # ---------------------------------------------------------------------------
 # 10. Set alacritty as default terminal
 # ---------------------------------------------------------------------------

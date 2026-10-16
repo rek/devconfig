@@ -1,0 +1,188 @@
+#!/bin/bash
+# Show Claude Code agent state on zellij tabs.
+#
+#   zellij-agent hook <working|waiting|done|end>   called from Claude Code hooks
+#   zellij-agent next                              jump to the next pane needing attention
+#   zellij-agent watch                             background loop that clears alerts on focus
+#   zellij-agent refresh                           recompute every tab label now
+#
+# Each agent pane writes its own state file; a tab label is the summary of its panes,
+# e.g. "dev 🔔1 ⏳2". Alerts (waiting/done) clear as soon as that pane is focused.
+# No-ops outside zellij. Install the hooks with install/install-claude-hooks.
+set -u
+
+[ -n "${ZELLIJ:-}" ] || exit 0
+
+STATE="${XDG_RUNTIME_DIR:-/tmp}/zellij-agents/${ZELLIJ_SESSION_NAME:-default}"
+PANES="$STATE/panes"   # <terminal_N> -> "<state> <tab_id>"
+TABS="$STATE/tabs"     # <tab_id>     -> "<base name>\n<label we set>"
+NOTIFY_ON="${ZELLIJ_AGENT_NOTIFY:-waiting done}"
+WATCH_INTERVAL="${ZELLIJ_AGENT_WATCH_INTERVAL:-4}"
+mkdir -p "$PANES" "$TABS"
+
+pane_state() { cut -d' ' -f1 "$PANES/$1" 2>/dev/null; }
+
+# refresh: prune dead panes, clear alerts on the focused pane, relabel every tab.
+refresh() {
+  local json tabs active
+  json=$(zellij action list-panes --json 2>/dev/null) || return 0
+  active=$(zellij action list-tabs --json 2>/dev/null | jq -r '.[]|select(.active)|.tab_id' | head -1)
+
+  # id tab_id focused tab_name(base64) for every terminal pane
+  local rows
+  rows=$(jq -r '.[]|select(.is_plugin==false)
+    |"terminal_\(.id) \(.tab_id) \(.is_focused) \(.tab_name|@base64)"' <<<"$json")
+
+  declare -A tab_name tab_w tab_k tab_d tab_n
+  local id tid focused b64 st f
+  while read -r id tid focused b64; do
+    [ -n "$id" ] || continue
+    tab_name[$tid]=$(base64 -d <<<"$b64")
+    tab_w[$tid]=${tab_w[$tid]:-0}; tab_k[$tid]=${tab_k[$tid]:-0}
+    tab_d[$tid]=${tab_d[$tid]:-0}; tab_n[$tid]=${tab_n[$tid]:-0}
+    [ -f "$PANES/$id" ] || continue
+    st=$(pane_state "$id")
+    # looking at it right now: alerts are acknowledged
+    if [ "$focused" = true ] && [ "$tid" = "$active" ] && [ "$st" != working ]; then
+      rm -f "$PANES/$id"; continue
+    fi
+    echo "$st $tid" > "$PANES/$id"
+    tab_n[$tid]=$((tab_n[$tid] + 1))
+    case "$st" in
+      waiting) tab_w[$tid]=$((tab_w[$tid] + 1)) ;;
+      working) tab_k[$tid]=$((tab_k[$tid] + 1)) ;;
+      done)    tab_d[$tid]=$((tab_d[$tid] + 1)) ;;
+    esac
+  done <<<"$rows"
+
+  # drop state for panes that no longer exist
+  for f in "$PANES"/*; do
+    [ -e "$f" ] || continue
+    grep -q "^$(basename "$f") " <<<"$rows" || rm -f "$f"
+  done
+
+  local base label cur badge
+  for tid in "${!tab_name[@]}"; do
+    cur=${tab_name[$tid]}
+    base=$cur
+    # if the name is still what we set, keep the remembered base; else the user renamed it
+    if [ -f "$TABS/$tid" ] && [ "$(sed -n 2p "$TABS/$tid")" = "$cur" ]; then
+      base=$(sed -n 1p "$TABS/$tid")
+    fi
+    badge=""
+    badge+=$(badge_for 🔔 "${tab_w[$tid]}" "${tab_n[$tid]}")
+    badge+=$(badge_for ⏳ "${tab_k[$tid]}" "${tab_n[$tid]}")
+    badge+=$(badge_for ✅ "${tab_d[$tid]}" "${tab_n[$tid]}")
+    label=$base
+    [ -n "$badge" ] && label="$base$badge"
+    if [ "$label" != "$cur" ]; then
+      zellij action rename-tab --tab-id "$tid" "$label" 2>/dev/null
+    fi
+    if [ -n "$badge" ]; then
+      printf '%s\n%s\n' "$base" "$label" > "$TABS/$tid"
+    else
+      rm -f "$TABS/$tid"
+    fi
+  done
+}
+
+# " 🔔" for one agent in the tab, " 🔔2" when the tab has several
+badge_for() {
+  [ "$2" -gt 0 ] || return 0
+  if [ "$3" -gt 1 ]; then printf ' %s%s' "$1" "$2"; else printf ' %s' "$1"; fi
+}
+
+locked_refresh() {
+  ( flock -w 10 8 || exit 0; refresh ) 8>"$STATE/lock"
+}
+
+ensure_watch() {
+  ( flock -n 9 || exit 0; watch_loop ) 9>"$STATE/watch.lock" >/dev/null 2>&1 &
+}
+
+# Poll cheaply: one small list-tabs call per tick, full refresh only when an alert
+# is sitting in the tab you're looking at. Exits when zellij goes away or it's idle.
+watch_loop() {
+  local idle=0 active alerts
+  while sleep "$WATCH_INTERVAL"; do
+    active=$(zellij action list-tabs --json 2>/dev/null | jq -r '.[]|select(.active)|.tab_id' | head -1)
+    [ -n "$active" ] || return 0
+    alerts=$(grep -lE "^(waiting|done) $active\$" "$PANES"/* 2>/dev/null | wc -l)
+    if [ "$alerts" -gt 0 ]; then locked_refresh; fi
+    if [ -z "$(ls -A "$PANES" 2>/dev/null)" ]; then
+      idle=$((idle + 1)); [ "$idle" -ge 15 ] && return 0
+    else
+      idle=0
+    fi
+  done
+}
+
+cmd_hook() {
+  local new=${1:?state} id="terminal_${ZELLIJ_PANE_ID:-}"
+  [ -n "${ZELLIJ_PANE_ID:-}" ] || exit 0
+  cat >/dev/null 2>&1 || true   # drain hook JSON on stdin
+  if [ "$new" = end ]; then
+    rm -f "$PANES/$id"
+  else
+    # PostToolUse fires constantly: skip when nothing changed
+    [ "$(pane_state "$id")" = "$new" ] && exit 0
+    echo "$new 0" > "$PANES/$id"
+  fi
+  (
+    locked_refresh
+    # still alerting after refresh means you're not looking at it
+    if [ -f "$PANES/$id" ] && [[ " $NOTIFY_ON " == *" $new "* ]]; then
+      notify_pane "$id" "$new"
+    fi
+    ensure_watch
+  ) >/dev/null 2>&1 &
+  disown
+}
+
+notify_pane() {
+  local id=$1 st=$2 tid name msg
+  tid=$(cut -d' ' -f2 "$PANES/$id")
+  name=$(zellij action list-tabs --json 2>/dev/null | jq -r --argjson t "$tid" '.[]|select(.tab_id==$t)|.name')
+  name=$(sed -E 's/ [🔔⏳✅][0-9]*//g' <<<"$name")
+  case "$st" in
+    waiting) msg="needs your input" ;;
+    done)    msg="finished" ;;
+    *)       msg="$st" ;;
+  esac
+  command -v notify-send >/dev/null && notify-send -a zellij -i dialog-information "Claude: ${name:-tab}" "$msg"
+}
+
+# Jump to the next pane that is waiting (first) or done, after the focused one, wrapping.
+cmd_next() {
+  local cur ctid cpid curkey want f st tid pid key pick first
+  cur=$(zellij action list-panes --json 2>/dev/null \
+    | jq -r '.[]|select(.is_plugin==false and .is_focused)|"\(.tab_id) \(.id)"' | head -1)
+  read -r ctid cpid <<<"$cur"
+  curkey=$(( ${ctid:-0} * 10000 + ${cpid:-0} ))
+  for want in waiting done; do
+    pick="" first=""
+    while read -r key tid pid; do
+      [ "$(pane_state "terminal_$pid")" = "$want" ] || continue
+      [ -n "$first" ] || first="$tid $pid"
+      if [ -z "$pick" ] && [ "$key" -gt "$curkey" ]; then pick="$tid $pid"; fi
+    done < <(for f in "$PANES"/*; do
+               [ -e "$f" ] || continue
+               tid=$(cut -d' ' -f2 "$f"); pid=${f##*terminal_}
+               echo "$((tid * 10000 + pid)) $tid $pid"
+             done | sort -n)
+    pick=${pick:-$first}
+    [ -n "$pick" ] && break
+  done
+  [ -n "${pick:-}" ] || exit 0
+  read -r tid pid <<<"$pick"
+  zellij action go-to-tab-by-id "$tid"
+  zellij action focus-pane-id "terminal_$pid"
+}
+
+case "${1:-}" in
+  hook)    shift; cmd_hook "$@" ;;
+  next)    cmd_next ;;
+  watch)   ( flock -n 9 || exit 0; watch_loop ) 9>"$STATE/watch.lock" ;;
+  refresh) locked_refresh ;;
+  *) echo "usage: zellij-agent {hook <working|waiting|done|end>|next|watch|refresh}" >&2; exit 2 ;;
+esac

@@ -27,6 +27,14 @@ The Arch variant backs up any existing dotfiles/configs to `*.bak` before symlin
 (Omarchy ships its own `.zshrc`, hypr config, etc. — you'll want to merge anything
 useful from `~/.zshrc.bak` back in).
 
+## Zellij agent status
+
+Both installers load [zellij-agent-status](https://github.com/rek/zellij-agent-status)
+so tab names show which AI agent needs you (`⏳` working, `✅` done). `Alt+a` jumps
+to the next waiting pane.
+
+![Zellij tab bar with agent-status badges](docs/zellij-agent-status.png)
+
 ## Things to do after installing Ubuntu
 
 ### Install

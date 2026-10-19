@@ -163,7 +163,7 @@ keybinds clear-defaults=true {
         bind "Alt i" { MoveTab "left"; }
         bind "Alt a" {
             // jump to the next Claude agent waiting on you
-            MessagePlugin "file:/home/adam/.config/zellij/plugins/zellij-agent-status.wasm" {
+            MessagePlugin "agent-status" {
                 name "agent-status-jump"
             }
         }
@@ -288,6 +288,7 @@ plugins {
     welcome-screen location="zellij:session-manager" {
         welcome_screen true
     }
+    agent-status location="file:/home/adam/.config/zellij/plugins/zellij-agent-status.wasm"
 }
 
 // Plugins to load in the background when a new session starts
@@ -296,9 +297,7 @@ plugins {
 load_plugins {
     zellij:link
     // agent state on tab names (github.com/rek/zellij-agent-status)
-    // no config: it must match the Alt+a MessagePlugin block exactly, or that
-    // keybind starts a second instance and the two fight over tab names
-    "file:/home/adam/.config/zellij/plugins/zellij-agent-status.wasm"
+    agent-status
 }
 web_client {
     font "monospace"

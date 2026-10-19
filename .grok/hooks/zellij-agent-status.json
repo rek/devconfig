@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/adam/.config/zellij/agent-status-hook.sh stop # zellij-agent-status"
+          }
+        ]
+      }
+    ]
+  }
+}

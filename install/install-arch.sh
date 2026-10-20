@@ -43,7 +43,8 @@ fi
 # 2. pacman packages
 # ---------------------------------------------------------------------------
 header "Installing pacman packages..."
-sudo pacman -S --needed --noconfirm git zsh curl htop btop alacritty wl-clipboard bluez bluez-utils
+# jq is required by install/install-claude-hooks and by scripts/display-setup.sh.
+sudo pacman -S --needed --noconfirm git zsh curl htop btop alacritty wl-clipboard bluez bluez-utils jq
 
 # ---------------------------------------------------------------------------
 # 2a. Bluetooth service (needed for A2DP audio sinks to appear in PipeWire)
@@ -126,16 +127,55 @@ done
 
 # ---------------------------------------------------------------------------
 # 8. Symlink .config entries — same backup logic
+#
+# systemd is the exception: ~/.config/systemd is a real directory on an
+# Omarchy box (it also holds Omarchy's own user units), so replacing it with
+# a symlink would delete those. Merge the repo's user/ units into it instead.
 # ---------------------------------------------------------------------------
 header "Symlinking .config to ~/ ..."
 mkdir -p "$HOME/.config"
 for d in "$REPO_ROOT"/.config/*/; do
-  target="$HOME/.config/$(basename "$d")"
+  base="$(basename "$d")"
+  target="$HOME/.config/$base"
+  if [ "$base" = "systemd" ]; then
+    mkdir -p "$target/user"
+    for unit in "$d"user/*; do
+      ln -sfn "$unit" "$target/user/$(basename "$unit")"
+    done
+    continue
+  fi
   if [ -d "$target" ] && [ ! -L "$target" ]; then
     echo "Backing up existing $target -> ${target}.bak"
     mv "$target" "${target}.bak"
   fi
   ln -sfn "$d" "$target"
+done
+
+# ---------------------------------------------------------------------------
+# 8a. Enable the systemd user units that ship in this repo
+#
+# These live in .config/systemd/user/ and are symlinked into ~/.config/systemd
+# by the loop above, but systemd needs them enabled explicitly — otherwise a
+# fresh install gets none of them.
+#
+# fan-governor.service is deliberately NOT enabled: its own unit comment says
+# it starts on demand from the launcher's AUTO button, and enabling it at
+# login would fight with the other fan buttons.
+# ---------------------------------------------------------------------------
+header "Enabling systemd user units..."
+systemctl --user daemon-reload
+for unit in \
+  igpu-desktop-sync.path \
+  igpu-desktop-sync.service \
+  omarchy-agent-usage-byteplus.timer \
+  omarchy-agent-usage-grok.timer \
+  omarchy-agent-usage-openrouter.timer \
+  omarchy-lock-resume-heal.service \
+  thermal-log.service
+do
+  systemctl --user enable --now "$unit" >/dev/null 2>&1 \
+    && echo "  enabled $unit" \
+    || echo "  skipped $unit (not available on this system)"
 done
 
 # ---------------------------------------------------------------------------

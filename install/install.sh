@@ -1,6 +1,6 @@
 #!/bin/bash
 # Fresh Ubuntu developer environment setup
-# Usage (one-liner): curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/install/install.sh | bash
+# Usage (one-liner): curl -fsSL https://raw.githubusercontent.com/rek/devconfig/main/install/install.sh | bash
 # Usage (after clone): ./install/install.sh
 set -e
 shopt -s nullglob
@@ -18,7 +18,8 @@ header() {
 # ---------------------------------------------------------------------------
 header "Installing apt packages..."
 sudo apt-get update -q
-sudo apt-get install -y aptitude git zsh htop btop curl alacritty wl-clipboard
+# jq is required by install/install-claude-hooks and by scripts/display-setup.sh.
+sudo apt-get install -y aptitude git zsh htop btop curl alacritty wl-clipboard jq
 
 # ---------------------------------------------------------------------------
 # 2. oh-my-zsh
@@ -101,11 +102,23 @@ done
 
 # ---------------------------------------------------------------------------
 # 7. Symlink .config entries
+#
+# systemd is the exception: ~/.config/systemd may be a real directory holding
+# the user's own user units, so merge the repo's user/ units into it rather
+# than replacing the whole directory with a symlink.
 # ---------------------------------------------------------------------------
 header "Symlinking .config to ~/ ..."
 mkdir -p "$HOME/.config"
 for d in "$REPO_ROOT"/.config/*/; do
-  target="$HOME/.config/$(basename "$d")"
+  base="$(basename "$d")"
+  target="$HOME/.config/$base"
+  if [ "$base" = "systemd" ]; then
+    mkdir -p "$target/user"
+    for unit in "$d"user/*; do
+      ln -sfn "$unit" "$target/user/$(basename "$unit")"
+    done
+    continue
+  fi
   # If target is a real (non-symlink) directory, back it up first
   if [ -d "$target" ] && [ ! -L "$target" ]; then
     echo "Backing up existing $target -> ${target}.bak"

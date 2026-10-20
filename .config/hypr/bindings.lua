@@ -39,13 +39,20 @@ o.bind("SUPER + SHIFT + X", "X", [[omarchy-launch-webapp "https://x.com/"]])
 o.bind("SUPER + SHIFT + ALT + X", "X Post", [[omarchy-launch-webapp "https://x.com/compose/post"]])
 
 -- Add extra bindings
-o.bind("CTRL + ALT + 6", "Move window to next monitor", "/home/adam/.config/hypr/scripts/move-to-next-monitor.sh")
-o.bind("CTRL + ALT + 7", "Tile with others on monitor", "/home/adam/.config/hypr/scripts/tile-with-others.sh")
+--
+-- Script paths come from Omarchy's shared paths module rather than a
+-- hardcoded /home/adam. Hyprland does not expand $HOME in a bind's exec
+-- argument, so the path has to be resolved here in Lua.
+local paths = require("default.hypr.paths")
+local scripts = paths.config_home .. "/hypr/scripts"
+
+o.bind("CTRL + ALT + 6", "Move window to next monitor", scripts .. "/move-to-next-monitor.sh")
+o.bind("CTRL + ALT + 7", "Tile with others on monitor", scripts .. "/tile-with-others.sh")
 o.bind("CTRL + ALT + 8", "Full screen", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 o.bind("CTRL + ALT + 9", "Cycle to previous visible window", "hyprctl dispatch cyclenext 'prev visible'")
 o.bind("CTRL + ALT + 0", "Cycle to next visible window", "hyprctl dispatch cyclenext visible")
-o.bind("CTRL + ALT + Y", "Snap window to left half", "/home/adam/.config/hypr/scripts/snap-half.sh left")
-o.bind("CTRL + ALT + U", "Snap window to right half", "/home/adam/.config/hypr/scripts/snap-half.sh right")
+o.bind("CTRL + ALT + Y", "Snap window to left half", scripts .. "/snap-half.sh left")
+o.bind("CTRL + ALT + U", "Snap window to right half", scripts .. "/snap-half.sh right")
 
 -- Dropdown terminal — CapsLock (keyd remaps caps→F13) toggles pyprland scratchpad.
 -- Bind by evdev keycode (KEY_F13 = 183, xkb +8 = 191): the F13 keysym is not in
@@ -55,7 +62,7 @@ o.bind("code:191", "Dropdown terminal", "pypr toggle term")
 -- Screenshot: slurp a region, then satty opens with the crop tool so the
 -- capture isn't finalized until you confirm. Overrides the default omarchy PRINT bind.
 hl.unbind("PRINT")
-o.bind("PRINT", "Screenshot (crop in satty)", "/home/adam/.config/hypr/scripts/screenshot-crop.sh")
+o.bind("PRINT", "Screenshot (crop in satty)", scripts .. "/screenshot-crop.sh")
 
 -- Logitech MX Keys examples:
 -- o.bind("SUPER + SHIFT + S", nil, "omarchy-capture-screenshot")

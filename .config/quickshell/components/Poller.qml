@@ -1,7 +1,7 @@
 // Periodically runs a shell command and exposes its stdout via `value`.
 // Quickshell equivalent of an eww `defpoll`.
 //
-//     Poller { id: cpu; command: "~/.config/eww/scripts/cpu.sh"; interval: 2000 }
+//     Poller { id: cpu; command: "~/.config/scripts/cpu.sh"; interval: 2000 }
 //     ...
 //     Text { text: cpu.value }                  // raw string
 //     Text { text: (parseFloat(cpu.value) || 0).toFixed(0) + "%" }

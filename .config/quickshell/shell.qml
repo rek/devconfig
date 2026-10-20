@@ -76,11 +76,11 @@ ShellRoot {
         // average — brief transfers can slip between samples.
         readonly property int liveInterval: 15000
         readonly property int idleInterval: 100000
-        Poller { id: cpu;  command: "~/.config/eww/scripts/cpu.sh";        interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
+        Poller { id: cpu;  command: "~/.config/scripts/cpu.sh";        interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
         Poller { id: ram;  command: "free | awk '/Mem:/ {printf \"%.0f\", $3/$2 * 100}'"; interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
-        Poller { id: tmp;  command: "~/.config/eww/scripts/cpu-temp.sh";   interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
-        Poller { id: dl;   command: "~/.config/eww/scripts/net-dl.sh 1";   interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
-        Poller { id: ul;   command: "~/.config/eww/scripts/net-ul.sh 1";   interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
+        Poller { id: tmp;  command: "~/.config/scripts/cpu-temp.sh";   interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
+        Poller { id: dl;   command: "~/.config/scripts/net-dl.sh 1";   interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
+        Poller { id: ul;   command: "~/.config/scripts/net-ul.sh 1";   interval: live.value ? statsHud.liveInterval : statsHud.idleInterval }
         // Battery: combined "<pct>|<status>" e.g. "92|Not charging".
         // Already slow, so LIVE doesn't slow it further — but pause it in step
         // with everything else when the card is off.

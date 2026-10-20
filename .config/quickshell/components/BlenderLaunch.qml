@@ -46,7 +46,7 @@ PanelWindow {
 
     function launch() {
         proc.command = ["bash", "-lc",
-            "~/.config/eww/scripts/launch.sh uwsm-app -- blender -noaudio"];
+            "~/.config/scripts/launch.sh uwsm-app -- blender -noaudio"];
         proc.running = true;
         hud.flash = true;
         flashOff.restart();

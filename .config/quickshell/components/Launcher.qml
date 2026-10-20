@@ -38,8 +38,8 @@ PanelWindow {
     }
 
     // State pollers — the same scripts the eww launcher used.
-    Poller { id: modeState;   command: "~/.config/eww/scripts/mode-state.sh";       interval: 3000 }
-    Poller { id: nightState;  command: "~/.config/eww/scripts/nightlight-state.sh"; interval: 3000 }
+    Poller { id: modeState;   command: "~/.config/scripts/mode-state.sh";       interval: 3000 }
+    Poller { id: nightState;  command: "~/.config/scripts/nightlight-state.sh"; interval: 3000 }
     Poller { id: phoneState;  command: "~/.config/quickshell/scripts/headphone-state.sh";  interval: 3000 }
     Poller { id: fanState;    command: "~/.config/quickshell/scripts/fan-state.sh";        interval: 3000 }
 
@@ -94,18 +94,18 @@ PanelWindow {
                     title: "MODE"
                     anchors.verticalCenter: parent.verticalCenter
                     LaunchButton { icon: "";   label: "WORK";   active: modeState.value === "work";
-                        command: "~/.config/eww/scripts/launch.sh ~/dev/devconfig/scripts/mode-button.sh work" }
+                        command: "~/.config/scripts/launch.sh ~/dev/devconfig/scripts/mode-button.sh work" }
                     LaunchButton { icon: "";   label: "HOME";   active: modeState.value === "home";
-                        command: "~/.config/eww/scripts/launch.sh ~/dev/devconfig/scripts/mode-button.sh home" }
+                        command: "~/.config/scripts/launch.sh ~/dev/devconfig/scripts/mode-button.sh home" }
                 }
 
                 ButtonGroup {
                     title: "DISPLAY"
                     anchors.verticalCenter: parent.verticalCenter
                     LaunchButton { icon: "󰓹";  label: "GLASS";
-                        command: "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/display-switch.sh glasses-only" }
+                        command: "~/.config/scripts/launch.sh ~/.config/scripts/display-switch.sh glasses-only" }
                     LaunchButton { icon: "󰌢"; label: "LAPTOP";
-                        command: "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/display-switch.sh laptop" }
+                        command: "~/.config/scripts/launch.sh ~/.config/scripts/display-switch.sh laptop" }
                 }
 
                 // Audio output pair — exactly one is always active.
@@ -113,9 +113,9 @@ PanelWindow {
                     title: "AUDIO OUT"
                     anchors.verticalCenter: parent.verticalCenter
                     LaunchButton { icon: "󰓃"; label: "SPEAKER"; active: phoneState.value !== "on";
-                        command: "~/.config/eww/scripts/launch.sh ~/.config/quickshell/scripts/headphone-toggle.sh speakers" }
+                        command: "~/.config/scripts/launch.sh ~/.config/quickshell/scripts/headphone-toggle.sh speakers" }
                     LaunchButton { icon: "󰋋"; label: "PHONES"; active: phoneState.value === "on";
-                        command: "~/.config/eww/scripts/launch.sh ~/.config/quickshell/scripts/headphone-toggle.sh phones" }
+                        command: "~/.config/scripts/launch.sh ~/.config/quickshell/scripts/headphone-toggle.sh phones" }
                 }
 
                 // MSI fan profile (msi-ec). SILENT/AUTO/HIGH pick fan_mode (HIGH = the
@@ -146,29 +146,29 @@ PanelWindow {
                     title: "SESSION"
                     anchors.verticalCenter: parent.verticalCenter
                     LaunchButton { icon: "";  label: "LOCK";
-                        command: "~/.config/eww/scripts/launch.sh omarchy system lock" }
+                        command: "~/.config/scripts/launch.sh omarchy system lock" }
                     LaunchButton { icon: ""; label: "BLANK";
-                        command: "~/.config/eww/scripts/launch.sh ~/.config/eww/scripts/display-off.sh" }
+                        command: "~/.config/scripts/launch.sh ~/.config/scripts/display-off.sh" }
                     LaunchButton { icon: ""; label: "SLEEP";
-                        command: "~/.config/eww/scripts/launch.sh systemctl suspend" }
+                        command: "~/.config/scripts/launch.sh systemctl suspend" }
                 }
 
                 ButtonGroup {
                     title: "LOOK"
                     anchors.verticalCenter: parent.verticalCenter
                     LaunchButton { icon: ""; label: "NIGHT"; active: nightState.value === "on";
-                        command: "~/.config/eww/scripts/launch.sh omarchy toggle nightlight" }
+                        command: "~/.config/scripts/launch.sh omarchy toggle nightlight" }
                     LaunchButton { icon: ""; label: "THEME";
-                        command: "~/.config/eww/scripts/launch.sh omarchy theme bg next" }
+                        command: "~/.config/scripts/launch.sh omarchy theme bg next" }
                 }
 
                 ButtonGroup {
                     title: "TOOLS"
                     anchors.verticalCenter: parent.verticalCenter
                     LaunchButton { icon: ""; label: "FILES";
-                        command: "~/.config/eww/scripts/launch.sh uwsm-app -- nautilus --new-window" }
+                        command: "~/.config/scripts/launch.sh uwsm-app -- nautilus --new-window" }
                     LaunchButton { icon: "";  label: "SHOT";
-                        command: "~/.config/eww/scripts/launch.sh omarchy capture screenshot" }
+                        command: "~/.config/scripts/launch.sh omarchy capture screenshot" }
                 }
             }
         }

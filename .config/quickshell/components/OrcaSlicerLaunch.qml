@@ -45,7 +45,7 @@ PanelWindow {
 
     function launch() {
         proc.command = ["bash", "-lc",
-            "~/.config/eww/scripts/launch.sh uwsm-app -- orca-slicer"];
+            "~/.config/scripts/launch.sh uwsm-app -- orca-slicer"];
         proc.running = true;
         hud.flash = true;
         flashOff.restart();

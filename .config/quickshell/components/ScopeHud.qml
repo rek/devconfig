@@ -55,7 +55,7 @@ PanelWindow {
     // === Live metrics — same scripts the old eww top-hud used ===
     Poller {
         id: cpuPoll
-        command: "~/.config/eww/scripts/cpu.sh"
+        command: "~/.config/scripts/cpu.sh"
         interval: 2000
         onValueChanged: hud.cpuHistory = hud.cpuHistory.concat([parseFloat(value) || 0]).slice(-hud.histLen)
     }
@@ -67,13 +67,13 @@ PanelWindow {
     }
     Poller {
         id: gpuPoll
-        command: "~/.config/eww/scripts/gpu.sh"
+        command: "~/.config/scripts/gpu.sh"
         interval: 3000
         onValueChanged: hud.gpuHistory = hud.gpuHistory.concat([parseFloat(value) || 0]).slice(-hud.histLen)
     }
     Poller {
         id: heatmapPoll
-        command: "~/.config/eww/scripts/git-heatmap.sh"
+        command: "~/.config/scripts/git-heatmap.sh"
         interval: 600000
     }
     readonly property var heatmapWeeks: {

@@ -5,7 +5,7 @@
 //     PrsHud {
 //         title:     "▌ /git/my_prs.tgt"
 //         stateKey:  "prs"
-//         script:    "~/.config/eww/scripts/github-prs.sh"
+//         script:    "~/.config/scripts/github-prs.sh"
 //         cachePath: "${XDG_RUNTIME_DIR:-/tmp}/eww-github-prs.json"
 //         vCenterOffsetRel: -0.40
 //         active: root.workMode               // gate visibility from caller
@@ -24,7 +24,7 @@ PanelWindow {
     id: hud
 
     // === Public API ===
-    property string script: "~/.config/eww/scripts/github-prs.sh"
+    property string script: "~/.config/scripts/github-prs.sh"
     property string cachePath: "${XDG_RUNTIME_DIR:-/tmp}/eww-github-prs.json"
     property string title: "▌ /git/my_prs"
     property string stateKey: "prs"

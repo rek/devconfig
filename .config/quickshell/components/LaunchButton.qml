@@ -8,7 +8,7 @@
 //     LaunchButton {
 //         icon: ""                       // nf glyph
 //         label: "WORK"
-//         command: "~/.config/eww/scripts/launch.sh ..."
+//         command: "~/.config/scripts/launch.sh ..."
 //         active: modeState.value === "work"   // optional
 //     }
 

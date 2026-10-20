@@ -4,7 +4,7 @@
 # carries previous RX bytes; delta divided by interval seconds = bytes/sec.
 set -euo pipefail
 
-STATE="${XDG_RUNTIME_DIR:-/tmp}/eww-net-dl.state"
+STATE="${XDG_RUNTIME_DIR:-/tmp}/scripts-net-dl.state"
 INTERVAL="${1:-1}"
 
 # RX bytes from all interfaces except loopback. /proc/net/dev: first

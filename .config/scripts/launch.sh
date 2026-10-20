@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Wrapper for eww/quickshell launcher buttons. Spawning commands as direct
-# children of eww/quickshell lacks Hyprland's session env — so apps like
+# Wrapper for quickshell launcher buttons. Spawning commands as direct
+# children of quickshell lacks Hyprland's session env — so apps like
 # nautilus never see the compositor properly. Routing through Hyprland's
 # exec dispatcher runs under the same path as keybinding `exec`, which is
 # what we want.

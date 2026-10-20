@@ -3,7 +3,7 @@
 # Mirrors net-dl.sh but reads TX bytes (column 11 in /proc/net/dev after the iface field).
 set -euo pipefail
 
-STATE="${XDG_RUNTIME_DIR:-/tmp}/eww-net-ul.state"
+STATE="${XDG_RUNTIME_DIR:-/tmp}/scripts-net-ul.state"
 INTERVAL="${1:-1}"
 
 TX=$(awk -F'[: ]+' '/:/ && $2 != "lo" {sum += $11} END {print sum+0}' /proc/net/dev)

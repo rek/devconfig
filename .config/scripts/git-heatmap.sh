@@ -5,15 +5,15 @@
 #   [ [ {"date","count","level"} x7 ] x WEEKS ]
 # Row 0 = Sunday. Future days in the current week render as level 0.
 #
-# Scanning ~50 repos takes a few seconds, so results are cached and the eww
-# poll runs on a relaxed interval.
+# Scanning ~50 repos takes a few seconds, so results are cached and the
+# quickshell poll runs on a relaxed interval.
 set -euo pipefail
 
 WEEKS=15
 DEV_ROOT="$HOME/dev"
 # git --author is a regex matched against "Name <email>". Cover Adam's identities.
 AUTHOR='Adam Tombleson\|rekarnar@gmail\|rek@users'
-CACHE="${XDG_RUNTIME_DIR:-/tmp}/eww-git-heatmap.json"
+CACHE="${XDG_RUNTIME_DIR:-/tmp}/scripts-git-heatmap.json"
 CACHE_TTL=600
 
 if [[ -f $CACHE ]]; then

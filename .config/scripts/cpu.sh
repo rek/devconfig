@@ -3,7 +3,7 @@
 # /proc/stat first line: cpu user nice system idle iowait irq softirq steal ...
 set -euo pipefail
 
-STATE="${XDG_RUNTIME_DIR:-/tmp}/eww-cpu.state"
+STATE="${XDG_RUNTIME_DIR:-/tmp}/scripts-cpu.state"
 
 read -r _ U N S I IO IR SI ST _ < /proc/stat
 TOTAL=$((U + N + S + I + IO + IR + SI + ST))

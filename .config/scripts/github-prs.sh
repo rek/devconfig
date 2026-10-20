@@ -6,7 +6,7 @@
 set -euo pipefail
 
 REPO="maiella-io/tgt"
-CACHE="${XDG_RUNTIME_DIR:-/tmp}/eww-github-prs.json"
+CACHE="${XDG_RUNTIME_DIR:-/tmp}/scripts-github-prs.json"
 CACHE_TTL=50
 
 if [[ -f $CACHE ]]; then

@@ -1,6 +1,6 @@
 # OPENSPEC:START
 # OpenSpec shell completions configuration
-fpath=("/home/adam/.oh-my-zsh/custom/completions" $fpath)
+fpath=("${HOME}/.oh-my-zsh/custom/completions" $fpath)
 autoload -Uz compinit
 compinit
 # OPENSPEC:END
@@ -18,7 +18,7 @@ fi
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
-export ZSH="/home/adam/.oh-my-zsh"
+export ZSH="${HOME}/.oh-my-zsh"
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -130,13 +130,13 @@ COGNITE_API_KEY=123
 export GITHUB_USERNAME=rek
 
 # bun completions
-[ -s "/home/adam/.bun/_bun" ] && source "/home/adam/.bun/_bun"
+[ -s "${HOME}/.bun/_bun" ] && source "${HOME}/.bun/_bun"
 
 # bun
-export BUN_INSTALL="/home/adam/.bun"
+export BUN_INSTALL="${HOME}/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
-export DENO_INSTALL="/home/adam/.deno"
+export DENO_INSTALL="${HOME}/.deno"
 export PATH="$DENO_INSTALL/bin:$PATH"
 
 # linux brew
@@ -148,7 +148,7 @@ export INFOPATH="$HOME/.linuxbrew/share/info:$INFOPATH"
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
 
 # Openshift
-export PATH="/home/adam/.crc/bin/oc:$PATH"
+export PATH="${HOME}/.crc/bin/oc:$PATH"
 export PATH="$HOME/.crc/bin/oc:$PATH"
 
 # Java — Arch's archlinux-java default (JDK 21), Debian/Ubuntu's update-alternatives default
@@ -176,10 +176,10 @@ for _android_home in /opt/android-sdk "$HOME/Android/Sdk"; do
 done
 unset _android_home
 
-export PATH=$PATH:/home/adam/bin
+export PATH=$PATH:${HOME}/bin
 
 # Moon
-# export PATH="/home/adam/.moon/bin:$PATH"
+# export PATH="${HOME}/.moon/bin:$PATH"
 
 # Proto
 export PROTO_HOME="$HOME/.proto"
@@ -191,14 +191,14 @@ export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/home/adam/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+__conda_setup="$("${HOME}/miniconda3/bin/conda" 'shell.zsh' 'hook' 2> /dev/null)"
 if [ $? -eq 0 ]; then
     eval "$__conda_setup"
 else
-    if [ -f "/home/adam/miniconda3/etc/profile.d/conda.sh" ]; then
-        . "/home/adam/miniconda3/etc/profile.d/conda.sh"
+    if [ -f "${HOME}/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "${HOME}/miniconda3/etc/profile.d/conda.sh"
     else
-        export PATH="/home/adam/miniconda3/bin:$PATH"
+        export PATH="${HOME}/miniconda3/bin:$PATH"
     fi
 fi
 unset __conda_setup
@@ -206,7 +206,7 @@ unset __conda_setup
 
 # scm_breeze wraps `git` in a shell function whose helpers don't survive
 # Claude Code's shell snapshot (git switch/checkout/branch break). Skip it there.
-[ -z "$CLAUDECODE" ] && [ -s "/home/adam/.scm_breeze/scm_breeze.sh" ] && source "/home/adam/.scm_breeze/scm_breeze.sh"
+[ -z "$CLAUDECODE" ] && [ -s "${HOME}/.scm_breeze/scm_breeze.sh" ] && source "${HOME}/.scm_breeze/scm_breeze.sh"
 
 export PATH=$PATH:/usr/local/go/bin
 export LD_LIBRARY_PATH=/usr/lib32/nvidia:/usr/lib/nvidia:$LD_LIBRARY_PATH
@@ -222,24 +222,24 @@ done
 unset _fzf_dir
 
 # for beads ai coding tool
-export PATH="$PATH:/home/adam/go/bin"
+export PATH="$PATH:${HOME}/go/bin"
 
 
 # The next line updates PATH for the Google Cloud SDK.
-if [ -f '/home/adam/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/home/adam/Downloads/google-cloud-sdk/path.zsh.inc'; fi
+if [ -f "${HOME}/Downloads/google-cloud-sdk/path.zsh.inc" ]; then . "${HOME}/Downloads/google-cloud-sdk/path.zsh.inc"; fi
 
 # The next line enables shell command completion for gcloud.
-if [ -f '/home/adam/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/adam/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
+if [ -f "${HOME}/Downloads/google-cloud-sdk/completion.zsh.inc" ]; then . "${HOME}/Downloads/google-cloud-sdk/completion.zsh.inc"; fi
 
 # add Pulumi to the PATH
-export PATH=$PATH:/home/adam/.pulumi/bin
+export PATH=$PATH:${HOME}/.pulumi/bin
 
 # VS Code shell integration
 [[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
 
 # peon-ping quick controls
-alias peon="bash /home/adam/.claude/hooks/peon-ping/peon.sh"
-[ -f /home/adam/.claude/hooks/peon-ping/completions.bash ] && source /home/adam/.claude/hooks/peon-ping/completions.bash
+alias peon="bash ${HOME}/.claude/hooks/peon-ping/peon.sh"
+[ -f ${HOME}/.claude/hooks/peon-ping/completions.bash ] && source ${HOME}/.claude/hooks/peon-ping/completions.bash
 
 # Run Claude Code against the local Ollama server (RTX 5090).
 # Usage: claude-local [claude args...]   e.g. claude-local -p "explain this repo"
@@ -258,7 +258,7 @@ claude-local() {
 
 
 # >>> graphify cache credential (scripts/place-graphify-cache-credential.sh) >>>
-[ -f "/home/adam/.config/graphify/cache-credential.env" ] && . "/home/adam/.config/graphify/cache-credential.env"
+[ -f "${HOME}/.config/graphify/cache-credential.env" ] && . "${HOME}/.config/graphify/cache-credential.env"
 # <<< graphify cache credential (scripts/place-graphify-cache-credential.sh) <<<
 
 # bun

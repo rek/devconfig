@@ -27,9 +27,8 @@ fi
 [ -n "${ZELLIJ:-}" ] || exit 0
 [ -n "${ZELLIJ_PANE_ID:-}" ] || exit 0
 
-# Target the local wasm. Broadcast (`--name` only) also hits the GitHub-URL
-# instance from load_plugins, which never unblocks CLI pipes, so Stop hangs
-# and the hourglass sticks.
+# One identity: the local wasm. Must match load_plugins and Alt+a.
+# --plugin pins that URL so a leftover https/alias copy cannot hang the pipe.
 # Closed stdin: zellij pipe otherwise waits for payload on stdin.
 # timeout: a missing plugin must never hang the agent.
 plugin="file:${HOME}/.config/zellij/plugins/zellij-agent-status.wasm"

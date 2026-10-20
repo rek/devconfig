@@ -162,11 +162,8 @@ keybinds clear-defaults=true {
         bind "Ctrl g" { SwitchToMode "locked"; }
         bind "Alt i" { MoveTab "left"; }
         bind "Alt a" {
-            // jump to the next agent waiting on you
-            // Must be the same URL as load_plugins and the hook's --plugin, or
-            // zellij starts a second instance with an empty tracker and Alt+a
-            // is a no-op. The GitHub-URL copy never unblocks CLI pipes.
-            MessagePlugin "file:/home/adam/.config/zellij/plugins/zellij-agent-status.wasm" {
+            // The "agent-status" alias below — same instance as load_plugins.
+            MessagePlugin "agent-status" {
                 name "agent-status-jump"
             }
         }
@@ -276,6 +273,11 @@ keybinds clear-defaults=true {
 
 // Plugin aliases - can be used to change the implementation of Zellij
 // changing these requires a restart to take effect
+//
+// Referencing an alias (rather than repeating a URL) is what makes the
+// agent-status plugin one instance: Zellij's instance identity is
+// (location, configuration), so the same URL spelled three different ways
+// would spawn three separate plugin processes.
 plugins {
     about location="zellij:about"
     compact-bar location="zellij:compact-bar"
@@ -291,7 +293,8 @@ plugins {
     welcome-screen location="zellij:session-manager" {
         welcome_screen true
     }
-    agent-status location="file:/home/adam/.config/zellij/plugins/zellij-agent-status.wasm"
+    // github.com/rek/zellij-agent-status
+    agent-status location="file:${HOME}/.config/zellij/plugins/zellij-agent-status.wasm"
 }
 
 // Plugins to load in the background when a new session starts
@@ -299,9 +302,7 @@ plugins {
 // eg. "https://example.com/my-plugin.wasm"
 load_plugins {
     zellij:link
-    // agent state on tab names (github.com/rek/zellij-agent-status)
-    // Same URL as Alt+a MessagePlugin and the hook --plugin (see bind "Alt a").
-    "file:/home/adam/.config/zellij/plugins/zellij-agent-status.wasm"
+    agent-status
 }
 web_client {
     font "monospace"

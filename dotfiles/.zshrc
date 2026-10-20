@@ -5,24 +5,7 @@ autoload -Uz compinit
 compinit
 # OPENSPEC:END
 
-# Auto-start zellij (replaced byobu)
-# Only auto-attach when opening a fresh terminal — skip if zellij isn't installed, if already
-# inside a multiplexer (zellij/tmux/screen/byobu), or in VS Code, Guake, ddterm, embedded terms.
-# Always attach to one fixed session, `main`. If it exited (reboot/crash), attach --create
-# resurrects it from the serialized layout, so tabs survive restarts.
-# ddterm detection: an env var set only on the ghostty -e launch command (DDTERM=1)
-# doesn't survive new tabs opened natively inside that window (ghostty spawns those
-# tabs' shells fresh, without re-running -e). Ask Hyprland for the current window's
-# class instead — it's true for every tab of the dropdown window, not just the first.
-_parent_proc=$(ps -p $PPID -o comm= 2>/dev/null)
-_win_class=""
-if [[ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]]; then
-  _win_class=$(hyprctl activewindow -j 2>/dev/null | jq -r '.class // empty' 2>/dev/null)
-fi
-if [[ -x ~/.local/bin/zellij && -z "$TMUX" && -z "$STY" && -z "$BYOBU_BACKEND" && -z "$ZELLIJ" && -z "$ZELLIJ_SESSION_NAME" && "$TERM_PROGRAM" != "vscode" && "$TERM_PROGRAM" != "guake" && -z "$INSIDE_EMACS" && -z "$VIMRUNTIME" && -z "$GUAKE" && "$_parent_proc" != "guake" && -z "$DDTERM" && "$_win_class" != "dropdown.term" ]]; then
-  exec ~/.local/bin/zellij attach --create main
-fi
-unset _parent_proc _win_class
+# zellij no longer auto-starts. Run `zellij attach --create main` to start it by hand.
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]

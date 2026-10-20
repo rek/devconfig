@@ -1,6 +1,8 @@
 .config/btop/btop.log
 .config/btop/*.log
-.config/hypr/monitors-runtime.conf
+
+# Machine-specific monitor layout, written by scripts/display-setup.sh.
+.config/hypr/monitors-runtime.lua
 
 # Claude Code per-machine settings (permission allowlist etc.)
 .claude/settings.local.json
@@ -8,6 +10,7 @@
 # Editor/tool backup files
 *.bak
 *.bak.*
+*.bak.*.*
 
 # Serena project cache
 .serena/

@@ -1,10 +1,15 @@
 # Quickshell
 
 Desktop HUDs on eDP-2 (`.config/quickshell/`), replacing the old eww HUDs.
-Runs via `exec-once = uwsm-app -- quickshell` in `hypr/autostart.conf`, auto-loading
+Runs via `exec-once = uwsm-app -- quickshell` in `hypr/autostart.lua`, auto-loading
 `~/.config/quickshell/shell.qml` (which resolves straight into this repo).
 
 Launch manually: `quickshell` · Teardown: `pkill quickshell`
+
+The shell scripts the HUDs poll live in `.config/scripts/` (symlinked to
+`~/.config/scripts/`). They used to sit in `.config/eww/scripts/`, back when
+eww rendered the HUDs — the directory name outlived its purpose, and eww
+itself is gone.
 
 ## Palette
 

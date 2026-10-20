@@ -5,12 +5,12 @@ my scripts for dev
 
 **Ubuntu:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/install/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rek/devconfig/main/install/install.sh | bash
 ```
 
 **Arch / Omarchy:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rek/devconfig/master/install/install-arch.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rek/devconfig/main/install/install-arch.sh | bash
 ```
 
 Or after cloning:
@@ -29,9 +29,22 @@ useful from `~/.zshrc.bak` back in).
 
 ## Zellij agent status
 
-Both installers load [zellij-agent-status](https://github.com/rek/zellij-agent-status)
-so tab names show which AI agent needs you (`⏳` working, `✅` done). `Alt+a` jumps
-to the next waiting pane.
+Both installers download [zellij-agent-status](https://github.com/rek/zellij-agent-status)
+to `~/.config/zellij/plugins/zellij-agent-status.wasm` and wire Claude/Grok hooks.
+Tab names show which agent needs you (`⏳` working, `✅` done). `Alt+a` jumps to
+the next waiting pane.
+
+The plugin is referenced through a single Zellij alias, so the keybind, the
+`load_plugins` entry, and the hook all resolve to one instance:
+
+```kdl
+plugins {
+    agent-status location="file:${HOME}/.config/zellij/plugins/zellij-agent-status.wasm"
+}
+```
+
+Zellij's plugin instance identity is `(location, configuration)`, so spelling
+the same URL three different ways would start three separate plugin processes.
 
 ![Zellij tab bar with agent-status badges](docs/zellij-agent-status.png)
 
@@ -91,7 +104,7 @@ daemon), and `ghostty`. Configs are already symlinked from this repo:
   Sets `DDTERM=1` so `.zshrc` skips the auto-attach to zellij.
 - `.config/ghostty/config` — `gtk-tabs-location = bottom` and
   `gtk-single-instance = false` so per-launch env doesn't leak between windows.
-- `.config/hypr/bindings.conf` — binds the F13 keycode (191) to `pypr toggle term`.
+- `.config/hypr/bindings.lua` — binds the F13 keycode (191) to `pypr toggle term`.
 
 ### Display setup
 
@@ -102,9 +115,15 @@ daemon), and `ghostty`. Configs are already symlinked from this repo:
 ~/dev/devconfig/scripts/display-setup.sh status          # Show current layout
 ```
 
-Applies via `hyprctl keyword monitor=...` AND persists to
-`~/.config/hypr/monitors-runtime.conf` (sourced from `hyprland.conf`), so the
-layout survives Hyprland config reloads. Auto-detects monitors by name/EDID.
+Applies live via `hyprctl eval 'hl.monitor({...})'` AND persists to
+`~/.config/hypr/monitors-runtime.lua`, a Lua module that `monitors.lua` loads
+on every reload — so the layout survives Hyprland config reloads. Auto-detects
+monitors by name/EDID.
+
+> Hyprland 0.56 uses Omarchy's native Lua config, so `hyprland.conf` and the
+> `source =` chain it used to drive are no longer read. The repo's Hyprland
+> config is Lua-only: `hyprland.lua` requires `monitors`, `input`, `bindings`,
+> `looknfeel`, `windowrules` and `autostart`.
 
 ## Parallel Arch / Ubuntu config sets
 

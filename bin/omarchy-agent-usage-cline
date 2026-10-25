@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+"""Write Cline Pass plan and recent usage history for Omarchy Agents.
+
+Uses the same account endpoints and OAuth session as Cline CLI. Cline Pass does
+not publish a clear subscriber allowance, so internal cap values and unrelated
+promotional credits are deliberately not presented as plan usage.
+"""
+import fcntl
+import json
+import os
+import sys
+import tempfile
+import urllib.error
+import urllib.parse
+import urllib.request
+from datetime import datetime, timedelta, timezone
+
+API_BASE = os.environ.get("CLINE_API_BASE_URL", "https://api.cline.bot").rstrip("/")
+SETTINGS = os.path.expanduser(os.environ.get("CLINE_SETTINGS_FILE", "~/.cline/data/settings/providers.json"))
+STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "omarchy", "agents", "usage")
+OUT_FILE = os.path.join(STATE_DIR, "cline.json")
+
+
+def now_iso():
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def parse_time(value):
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def base_record():
+    return {
+        "schemaVersion": 1, "id": "cline", "name": "Cline", "updatedAt": now_iso(),
+        "ready": False, "hasLocalStats": False, "hasPromptStats": False,
+        "limits": [], "tierLabel": "", "todayPrompts": 0, "todaySessions": 0,
+        "todayTotalTokens": 0, "todayTokensByModel": {}, "recentDays": [],
+        "totalPrompts": 0, "totalSessions": 0, "activeDays": 0, "modelUsage": {},
+        "authHelpText": "", "usageStatusText": "",
+    }
+
+
+def write_record(record):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".cline.", dir=STATE_DIR)
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(record, f)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, OUT_FILE)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def unavailable(reason, retry=False):
+    record = base_record()
+    record["authHelpText" if not retry else "usageStatusText"] = reason
+    if retry:
+        record["retryAdvised"] = True
+    write_record(record)
+
+
+def request(url, token=None, payload=None):
+    headers = {"Accept": "application/json"}
+    data = None
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(payload).encode()
+    req = urllib.request.Request(url, data=data, headers=headers)
+    with urllib.request.urlopen(req, timeout=20) as response:
+        body = json.load(response)
+    if body.get("success") is False:
+        raise RuntimeError(str(body.get("error") or "Cline API request failed"))
+    return body.get("data", body)
+
+
+def api_get(path, token):
+    return request(API_BASE + path, token=token)
+
+
+def save_refreshed_tokens(old_refresh, refreshed):
+    """Update only entries still using the token we refreshed; never undo CLI login."""
+    with open(SETTINGS) as f:
+        settings = json.load(f)
+    changed = False
+    for entry in settings.get("providers", {}).values():
+        auth = entry.get("settings", {}).get("auth", {})
+        if auth.get("refreshToken") != old_refresh:
+            continue
+        auth["accessToken"] = refreshed["accessToken"]
+        auth["refreshToken"] = refreshed["refreshToken"]
+        auth["expiresAt"] = refreshed["expiresAt"]
+        changed = True
+    if changed:
+        directory = os.path.dirname(SETTINGS)
+        fd, tmp = tempfile.mkstemp(prefix=".providers.", dir=directory)
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(settings, f, indent=2)
+                f.write("\n")
+            os.chmod(tmp, 0o600)
+            os.replace(tmp, SETTINGS)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
+
+def credentials():
+    """Reuse a valid token or refresh through Cline's own account endpoint."""
+    lock_path = SETTINGS + ".omarchy-usage.lock"
+    with open(lock_path, "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        with open(SETTINGS) as f:
+            settings = json.load(f)
+        providers = settings.get("providers", {})
+        selected = settings.get("lastUsedProvider")
+        if selected not in ("cline", "cline-pass"):
+            selected = "cline"
+        entry = providers.get(selected) or providers.get("cline") or providers.get("cline-pass")
+        if not entry:
+            raise PermissionError("Run `cline auth cline` to authenticate Cline.")
+        auth = entry.get("settings", {}).get("auth", {})
+        token = auth.get("accessToken")
+        refresh = auth.get("refreshToken")
+        if token and auth.get("expiresAt", 0) > datetime.now(timezone.utc).timestamp() * 1000 + 300000:
+            return token, auth.get("accountId")
+        if not refresh:
+            raise PermissionError("Run `cline auth cline` to refresh your Cline login.")
+        body = request(API_BASE + "/api/v1/auth/refresh", payload={"refreshToken": refresh, "grantType": "refresh_token"})
+        refreshed = {
+            "accessToken": body["accessToken"],
+            "refreshToken": body.get("refreshToken") or refresh,
+            "expiresAt": int(parse_time(body["expiresAt"]).timestamp() * 1000),
+        }
+        save_refreshed_tokens(refresh, refreshed)
+        return refreshed["accessToken"], auth.get("accountId")
+
+
+
+def fetch_usages(token, user_id, now):
+    items, next_token, cutoff = [], "", now - timedelta(days=30)
+    seen_tokens = set()
+    for _ in range(100):
+        path = "/api/v1/users/%s/usages" % urllib.parse.quote(user_id, safe="")
+        if next_token:
+            path += "?" + urllib.parse.urlencode({"cursor": next_token})
+        page = api_get(path, token)
+        batch = page.get("items") or []
+        items.extend(batch)
+        next_token = page.get("nextToken") or ""
+        if next_token in seen_tokens:
+            raise RuntimeError("Cline usage pagination repeated a cursor")
+        seen_tokens.add(next_token)
+        if not next_token or not batch or parse_time(batch[-1]["createdAt"]) < cutoff:
+            break
+    return [item for item in items if parse_time(item["createdAt"]) >= cutoff]
+
+
+def add_local_stats(record, usages, now):
+    chats = [u for u in usages if u.get("operation") == "chat_completion"]
+    today = now.astimezone().date()
+    days = {(today - timedelta(days=i)).isoformat(): 0 for i in range(6, -1, -1)}
+    sessions, today_sessions = set(), set()
+    for usage in chats:
+        created = parse_time(usage["createdAt"])
+        local_date = created.astimezone().date().isoformat()
+        model = usage.get("aiModelName") or "unknown"
+        prompt = int(usage.get("promptTokens") or 0)
+        output = int(usage.get("completionTokens") or 0)
+        cached = int(usage.get("cachedTokens") or 0)
+        total = int(usage.get("totalTokens") or prompt + output)
+        bucket = record["modelUsage"].setdefault(model, {
+            "inputTokens": 0, "outputTokens": 0,
+            "cacheReadInputTokens": 0, "cacheCreationInputTokens": 0,
+        })
+        bucket["inputTokens"] += max(0, prompt - cached)
+        bucket["outputTokens"] += output
+        bucket["cacheReadInputTokens"] += cached
+        if local_date in days:
+            days[local_date] += total
+        session = usage.get("metadata", {}).get("session_id")
+        if session:
+            sessions.add(session)
+        if local_date == today.isoformat():
+            record["todayPrompts"] += 1
+            record["todayTotalTokens"] += total
+            record["todayTokensByModel"][model] = record["todayTokensByModel"].get(model, 0) + total
+            if session:
+                today_sessions.add(session)
+    record["recentDays"] = [{"date": day, "messageCount": count} for day, count in days.items()]
+    record["totalPrompts"] = len(chats)
+    record["totalSessions"] = len(sessions)
+    record["todaySessions"] = len(today_sessions)
+    record["activeDays"] = len({parse_time(u["createdAt"]).astimezone().date().isoformat() for u in chats})
+    record["hasLocalStats"] = bool(chats)
+    record["hasPromptStats"] = bool(chats)
+
+
+def main():
+    try:
+        token, user_id = credentials()
+        if not user_id:
+            user_id = api_get("/api/v1/users/me", token)["id"]
+        now = datetime.now(timezone.utc)
+        plan = api_get("/api/v1/users/me/plan", token)
+        usages = fetch_usages(token, user_id, now)
+    except PermissionError:
+        raise
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            raise PermissionError("Run `cline auth cline` to refresh your Cline login.") from e
+        raise ConnectionError("Cline account request failed (HTTP %d)." % e.code) from e
+
+    record = base_record()
+    record["ready"] = True
+    record["tierLabel"] = plan.get("plan", {}).get("displayName") or "Cline"
+    add_local_stats(record, usages, now)
+    write_record(record)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except PermissionError as e:
+        unavailable(str(e))
+    except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+        unavailable("Cline usage unavailable: %s. Will retry." % e, retry=True)
+    except Exception as e:
+        unavailable("omarchy-agent-usage-cline failed: %s" % e)
+        sys.exit(1)

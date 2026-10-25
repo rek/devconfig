@@ -168,6 +168,7 @@ for unit in \
   igpu-desktop-sync.path \
   igpu-desktop-sync.service \
   omarchy-agent-usage-byteplus.timer \
+  omarchy-agent-usage-cline.timer \
   omarchy-agent-usage-grok.timer \
   omarchy-agent-usage-openrouter.timer \
   omarchy-lock-resume-heal.service \

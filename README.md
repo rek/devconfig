@@ -142,6 +142,12 @@ Ubuntu/GNOME setup. (Note: the top-level installers `install/install.sh` and
 `install/install-arch.sh` predate this convention and use an inverted naming — the
 dropdown/xreal pattern above is the canonical one going forward.)
 
+## Home lab
+
+The Raspberry Pi running Home Assistant (HAOS): SSH doors, Tailscale, the
+Let's Encrypt HTTPS setup and the HAOS 18 CLI/container gotchas are in
+[docs/homeassistant-rpi.md](docs/homeassistant-rpi.md).
+
 ## ddterm (GNOME / Ubuntu only)
 
 > Used only on Ubuntu/GNOME. On Arch/Hyprland the dropdown is ghostty

@@ -23,7 +23,8 @@ CI + release workflows on tag push.
 | Wasm the machine runs | `~/.config/zellij/plugins/zellij-agent-status.wasm` | **must be the published release artifact** — see below |
 | Install/update script | devconfig `install/install-zellij-agent-status` | downloads latest GitHub release, clears the Zellij plugin cache, reloads |
 | Zellij config | devconfig `.config/zellij/config.kdl` | one `agent-status` alias (`location="file:..."`) + `load_plugins` + Alt+a `MessagePlugin "agent-status"` |
-| Hook script | devconfig `.config/zellij/agent-status-hook.sh` (live at `~/.config/zellij/`) | pipes `pane:state` to the plugin; pipes pin `--plugin file:...` |
+| Hook script | devconfig `.config/zellij/agent-status-hook.sh` (live at `~/.config/zellij/`) | pipes `pane:state` to the plugin; written by the plugin's first-load installer from its template |
+| Plugin pin file | devconfig `.config/zellij/agent-status-plugin.url` (live at `~/.config/zellij/`) | first line = the alias URL from config.kdl; the hook pipes `--plugin` to it alone. Keep in sync with config.kdl |
 | Agent hooks | `~/.claude/settings.json` | UserPromptSubmit/PostToolUse → working, Notification → waiting, Stop → stop, SessionEnd → end. Written by the plugin's first-load installer; Grok Build uses the same file |
 | Zellij plugin cache | `~/.cache/zellij/**` | compiled plugins cached by URL — must be dropped on update, or the old build keeps running |
 
@@ -84,11 +85,16 @@ verifying the hashes matched.
 - **The plugin rewrites the hook script.** On first load — and whenever the
   hook's version tag (`# zellij-agent-status vX.Y.Z`) is older than the
   running plugin — it rewrites `~/.config/zellij/agent-status-hook.sh` from
-  its baked-in template and re-merges `~/.claude/settings.json`. Note: our
-  tracked hook pins `--plugin file:...`; the plugin's upstream template does
-  not. After a version bump, expect a git diff on the tracked hook in
-  devconfig — either upstream the pin into `scripts/agent-status-hook.sh`
-  (preferred) or re-apply the pin and commit.
+  its baked-in template and re-merges `~/.claude/settings.json`. Since
+  **v0.1.6** the template itself reads the machine-local pin file
+  `~/.config/zellij/agent-status-plugin.url` (this repo tracks it): present →
+  the hook pipes `--plugin` to that exact URL alone; absent → the pipe
+  broadcasts. So version bumps rewrite the hook *without* discarding this
+  machine's pin — the only expected diff on a bump is the version-tag line.
+  Never hand-edit the hook's pin back in; edit the `.url` file or the
+  template in the plugin repo. (A `--plugin` URL that is not the running
+  instance makes zellij *launch* a second copy — keep the `.url` in sync with
+  config.kdl's alias.)
 - **Closed stdin.** `zellij pipe` waits on stdin; every invocation must
   redirect `</dev/null` or the agent hangs until the `timeout 2` kills it.
 - **devconfig pushes are on demand.** Commits to devconfig stay local until

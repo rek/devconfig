@@ -1,5 +1,12 @@
 #!/bin/bash
 # Install the zellij-agent-status plugin (prebuilt wasm from GitHub releases).
+#
+# This is the ONLY way the machine should get the wasm: always the published
+# release artifact, never a local `make install` build (that is dev-only and
+# drifts from what CI published — see docs/zellij-agent-status.md).
+#
+# Zellij caches compiled plugins by URL, so a replaced wasm is not enough:
+# the cache must be dropped or the old build keeps running across restarts.
 set -e
 
 DEST="$HOME/.config/zellij/plugins"
@@ -8,3 +15,20 @@ echo "Installing zellij-agent-status plugin..."
 curl -sS -L -f "https://github.com/rek/zellij-agent-status/releases/latest/download/zellij-agent-status.wasm" \
   -o "$DEST/zellij-agent-status.wasm"
 echo "Installed: $DEST/zellij-agent-status.wasm"
+
+# Drop Zellij's compiled-plugin cache for agent-status so the next load
+# compiles the fresh wasm instead of serving the previous one.
+if [ -d "$HOME/.cache/zellij" ]; then
+  find "$HOME/.cache/zellij" -name '*zellij-agent-status*' -prune -exec rm -rf {} + 2>/dev/null || true
+  echo "Cleared Zellij's agent-status plugin cache."
+fi
+
+if [ -n "${ZELLIJ:-}" ]; then
+  # Reload the aliased instance in the running session (same alias as
+  # config.kdl's plugins{} block, so this does not start a second copy).
+  zellij action start-or-reload-plugin agent-status </dev/null >/dev/null 2>&1 \
+    && echo "Reloaded agent-status in the running Zellij session." \
+    || echo "Start a new Zellij session to load the updated plugin."
+else
+  echo "Start a new Zellij session (or run the hook once) to pick up the update."
+fi

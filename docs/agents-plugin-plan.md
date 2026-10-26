@@ -382,6 +382,20 @@ bin/omarchy-agent-usage-{grok,openrouter,byteplus}
 ~/dev/devconfig/bin/omarchy-agent-usage-byteplus && cat ~/.local/state/omarchy/agents/usage/byteplus.json | python3 -m json.tool
 arkcli auth login   # re-run this when byteplus.json's authHelpText says the SSO session lapsed (~weekly)
 
+# Cline (added 2026-10-25, same pattern): ClinePass plan + usage stats.
+# No percentage meter BY DESIGN — Cline Pass publishes no subscriber
+# allowance, so the collector reports stats only, never internal caps.
+# It rides the Cline CLI's OAuth session (~/.cline/data/settings/providers.json).
+# The CLI is an npm global inside proto's node (~/.proto/tools/node/<ver>).
+# On 2026-10-26 its 3.0.73 session was server-side revoked with a
+# "use the latest version" 401 (api.cline.bot) even though the token looked
+# unexpired. Fix: updated the npm global to 3.0.74 and symlinked it into
+# ~/.local/bin so plain `cline` is on PATH (the symlink targets the
+# versioned proto node path — recreate it after a proto node upgrade).
+# Re-auth, then kick the collector once:
+cline auth cline             # npx cline@latest works too
+# then: systemctl --user start omarchy-agent-usage-cline.service
+
 # Apply a QML/manifest edit:
 omarchy restart shell   # NOT just editing-and-waiting — see visibility bug note above
 journalctl --user --since "10 seconds ago" | grep -i error   # sanity check, ignore the

@@ -97,6 +97,18 @@ verifying the hashes matched.
   config.kdl's alias.)
 - **Closed stdin.** `zellij pipe` waits on stdin; every invocation must
   redirect `</dev/null` or the agent hangs until the `timeout 2` kills it.
+- **Stray instances persist in the session.** A plugin copy opened as a pane
+  (an old `https://` URL, an `Alt+a` bind spelled differently) is saved into
+  the session layout and resurrects with it. On 2026-10-27 one was found as a
+  hidden floating pane in the `valkeet` tab, from before the alias cleanup.
+  Check for exactly one instance (`plugin_url` = `agent-status`) with the
+  plugin README's "Troubleshooting a badge that won't clear" commands.
+- **Hidden floating panes still report focus** (fixed in v0.1.7). Every tab
+  here has a hidden float; zellij marks it focused alongside the tiled agent
+  pane. Before v0.1.7 the plugin took the higher pane id, so ✅ never cleared
+  in tabs whose float was created after the agent pane (apps-small,
+  devconfig, server on 2026-10-27). `zellij action list-panes -a -j` shows
+  this directly, and found it in minutes after code reading hadn't.
 - **devconfig pushes are on demand.** Commits to devconfig stay local until
   Adam asks for a push; the plugin repo pushes normally (tags trigger public
   releases, so never push a tag casually).

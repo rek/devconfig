@@ -286,11 +286,23 @@ ShellRoot {
     }
 
     IssuesHud {
+        id: parakeetIssues
         repo:    "rek/parakeet"
         tabName: "parakeet"
         title:   "▌ /git/needs_reply.prk"
         stateKey: "issues-parakeet"
         anchorBelow: alphaIssues
+    }
+
+    // ============================================================
+    // CPU + GPU temperature graph — 10-minute scrolling history, sampled
+    // every 5s while LIVE. Left edge of eDP-2, foot of the issues stack. Drag
+    // to flip for min/avg/max.
+    // ============================================================
+    TempHud {
+        id: tempHud
+        anchorBelow: parakeetIssues
+        anchorGap: 12   // match the issues stack's gap
     }
 
     // ============================================================

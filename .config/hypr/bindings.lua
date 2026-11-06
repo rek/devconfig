@@ -59,10 +59,9 @@ o.bind("CTRL + ALT + U", "Snap window to right half", scripts .. "/snap-half.sh 
 -- the active xkb keymap, so a plain F13 key name never matches.
 o.bind("code:191", "Dropdown terminal", "pypr toggle term")
 
--- Screenshot: slurp a region, then satty opens with the crop tool so the
--- capture isn't finalized until you confirm. Overrides the default omarchy PRINT bind.
-hl.unbind("PRINT")
-o.bind("PRINT", "Screenshot (crop in satty)", scripts .. "/screenshot-crop.sh")
+-- Screenshots: PRINT is Omarchy's default (Omasnap, via omarchy-capture-screenshot).
+-- The old satty crop script that overrode it was dropped when Omarchy 4.5.0
+-- replaced satty with Omasnap.
 
 -- Logitech MX Keys examples:
 -- o.bind("SUPER + SHIFT + S", nil, "omarchy-capture-screenshot")

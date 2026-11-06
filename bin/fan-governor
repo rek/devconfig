@@ -12,11 +12,17 @@
 #     spikes are averaged out;
 #   - back down only after a full MIN_HOLD in the louder gear, so the fans
 #     don't surge up and down (a changing pitch is more annoying than a
-#     steady loud one).
+#     steady loud one);
+#   - cooler boost (fans pinned to max) on top when the CPU is genuinely hot
+#     (BOOST_C) — even advanced tops out below the fans' ceiling — and off
+#     again once it has cooled back under BOOST_OFF_C. Hysteresis, so it
+#     never surges on the threshold, and it only ever clears a boost it set:
+#     a boost switched on by hand stays on until the hand switches it off.
 #
-# It only drives fan_mode while it owns it: in "auto" or the gear it set
-# itself. If you pick a mode by hand it stays out of the way, and it never
-# touches cooler_boost.
+# It only drives fan_mode (and our own cooler boost) while it owns it: in
+# "auto" or the gear it set itself. If you pick a mode by hand it stays out
+# of the way, and a cooler boost switched on by hand is never switched off
+# by the governor.
 #
 # Started by the launcher's AUTO button and stopped by the other fan buttons
 # (scripts/fan-set.sh), as the user unit fan-governor.service.
@@ -29,6 +35,8 @@ HOT_C=${FAN_GOVERNOR_HOT_C:-78}         # at/above this: advanced gear
 RISE_C=${FAN_GOVERNOR_RISE_C:-70}       # warm enough to act on a fast climb...
 RISE_RATE=${FAN_GOVERNOR_RISE_RATE:-5}  # ...of this many °C over the 60s window
 COOL_C=${FAN_GOVERNOR_COOL_C:-70}       # advanced -> auto at/below this
+BOOST_C=${FAN_GOVERNOR_BOOST_C:-80}     # cooler boost on at/above this
+BOOST_OFF_C=${FAN_GOVERNOR_BOOST_OFF_C:-72}  # ...and off again at/below this
 MIN_HOLD=${FAN_GOVERNOR_MIN_HOLD:-60}   # seconds before stepping down a gear
 INTERVAL=${FAN_GOVERNOR_INTERVAL:-5}
 WINDOW=$(( 60 / INTERVAL ))     # readings kept: 60s of history
@@ -37,6 +45,7 @@ WINDOW=$(( 60 / INTERVAL ))     # readings kept: 60s of history
 
 gear=auto   # the gear we last set
 since=0     # SECONDS when we entered it
+boosted=0   # 1 when cooler boost is on because we set it
 history=()  # recent temps, one per tick
 
 mean() {
@@ -50,7 +59,11 @@ set_gear() {
     echo "$1" > "$EC/fan_mode" && { gear=$1; since=$SECONDS; }
 }
 
-trap 'set_gear auto; exit 0' INT TERM
+drop_boost() {
+    (( boosted )) && echo off > "$EC/cooler_boost" && boosted=0
+}
+
+trap 'set_gear auto; drop_boost; exit 0' INT TERM
 
 # Sleep in the background and wait on it: bash only runs a trap once the
 # foreground command ends, so a plain `sleep` would delay a stop by up to
@@ -84,5 +97,16 @@ while sleep "$INTERVAL" & wait $!; do
         (( held >= MIN_HOLD )) && set_gear silent
     else
         [[ $gear == silent ]] && set_gear auto
+    fi
+
+    # Cooler boost rides on top of the gear while the CPU is genuinely hot
+    # (the "hard work" band), off once it has cooled past the hysteresis
+    # band. A boost someone else switched on is left alone.
+    if (( now >= BOOST_C )); then
+        if [[ $(<"$EC/cooler_boost") == off ]]; then
+            echo on > "$EC/cooler_boost" && boosted=1
+        fi
+    elif (( boosted )) && (( now <= BOOST_OFF_C )); then
+        drop_boost
     fi
 done

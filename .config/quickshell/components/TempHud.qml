@@ -6,15 +6,15 @@
 // Samples every 5s while the front's LIVE toggle is on. Off pauses sampling
 // entirely (rather than dropping to a slow background poll like the other
 // HUDs): the x-axis is real time, so a gap in the line honestly shows when
-// nothing was recorded. The history lives in memory only — it restarts empty
-// when quickshell reloads, so a longer window is only as full as the time
-// recorded since (the back says how much that is).
+// nothing was recorded. The history lives in memory, but on start it is seeded
+// from bin/thermal-log's on-disk samples (a row every 30s), so a reload doesn't
+// empty the longer windows; the back says how much time the numbers cover.
 // Pass `anchorBelow` to hang its top edge directly off another card's bottom
 // (same convention as IssuesHud). Sits on the left edge, so it can stack under
 // the issues cards. Drag to flip for min/avg/max over the window; CLEAR there
 // restarts just those numbers, the graph keeps its history.
 //
-// Data comes from scripts/temps.sh -> "epoch|cpuC|gpuC" ("--" = no sensor).
+// Live data comes from scripts/temps.sh -> "epoch|cpuC|gpuC" ("--" = no sensor).
 
 import QtQuick
 import Quickshell
@@ -41,6 +41,10 @@ PanelWindow {
     // Longest sample spacing still drawn as one continuous line; anything
     // wider (LIVE was off, or a poll was missed) breaks the trace.
     readonly property int gapSec: 12
+    // Rows seeded from thermal-log are 30s apart, so any pair touching one gets
+    // a limit that tolerates a single missed row.
+    readonly property int seedInterval: 30
+    readonly property int seedGapSec: 75
     // Fixed °C axis so a trace's height means the same thing at a glance.
     readonly property real yMin: 30
     readonly property real yMax: 110
@@ -74,8 +78,40 @@ PanelWindow {
         onValueChanged: hud.record(value)
     }
 
-    // [{ t: epochSec, cpu: °C, gpu: °C }], oldest first; NaN = no reading.
+    // [{ t: epochSec, cpu: °C, gpu: °C, seed?: true }], oldest first; NaN = no
+    // reading. `seed` marks rows that came from thermal-log rather than the
+    // live poll.
     property var samples: []
+
+    function gapLimit(a, b) { return (a.seed || b.seed) ? hud.seedGapSec : hud.gapSec; }
+    // How long a sample stands for when nothing follows it closely.
+    function spacing(s) { return s.seed ? hud.seedInterval : hud.liveInterval / 1000; }
+
+    // thermal-log columns: time pkg_C dimm_C fans gpu_pct gpu_W gpu_C load1 top3.
+    // pkg_C is the same x86_pkg_temp zone this card reads, gpu_C the same
+    // nvidia-smi figure; "-" (no reading) parses to NaN like "--" does live.
+    function seed(text) {
+        const rows = [];
+        for (const line of (text || "").split("\n")) {
+            if (!line || line[0] === "#") continue;
+            const f = line.split("\t");
+            const t = Math.floor(Date.parse(f[0]) / 1000);
+            if (isNaN(t)) continue;
+            rows.push({ t: t, cpu: parseFloat(f[1]), gpu: parseFloat(f[6]), seed: true });
+        }
+        // Live samples are newer and finer, so seed only what predates them.
+        const firstLive = hud.samples.length > 0 ? hud.samples[0].t : Infinity;
+        const cutoff = Math.floor(Date.now() / 1000) - hud.retainSec;
+        hud.samples = rows.filter(s => s.t >= cutoff && s.t < firstLive).concat(hud.samples);
+    }
+
+    Process {
+        id: seedRead
+        command: ["sh", "-c", "tail -n " + (Math.ceil(hud.retainSec / hud.seedInterval) + 30)
+                              + " ~/.local/state/thermal-log/samples.tsv 2>/dev/null"]
+        running: true
+        stdout: StdioCollector { onStreamFinished: hud.seed(text) }
+    }
 
     function record(line) {
         const p = (line || "").split("|");
@@ -100,21 +136,33 @@ PanelWindow {
     readonly property int recordedSec:
         statSamples.length > 1 ? statSamples[statSamples.length - 1].t - statSamples[0].t : 0
 
-    readonly property var last: samples.length > 0 ? samples[samples.length - 1] : null
+    // The front's readout is the live reading: a seeded row is history, however
+    // recent, so it never stands in for "now".
+    readonly property var last:
+        samples.length > 0 && !samples[samples.length - 1].seed ? samples[samples.length - 1] : null
     readonly property real cpuNow: last ? last.cpu : NaN
     readonly property real gpuNow: last ? last.gpu : NaN
 
+    // Min/max are per reading. The average is weighted by how long each reading
+    // stood (to the next sample, or its own spacing across a gap), so 30s seeded
+    // rows and 5s live rows count by time rather than by how many there are.
     function stat(key) {
-        let lo = Infinity, hi = -Infinity, sum = 0, n = 0;
-        for (const s of hud.statSamples) {
-            const v = s[key];
+        const pts = hud.statSamples;
+        let lo = Infinity, hi = -Infinity, sum = 0, wsum = 0;
+        for (let i = 0; i < pts.length; i++) {
+            const v = pts[i][key];
             if (isNaN(v)) continue;
             lo = Math.min(lo, v);
             hi = Math.max(hi, v);
-            sum += v;
-            n++;
+            let w = hud.spacing(pts[i]);
+            if (i + 1 < pts.length) {
+                const dt = pts[i + 1].t - pts[i].t;
+                if (dt <= hud.gapLimit(pts[i], pts[i + 1])) w = dt;
+            }
+            sum += v * w;
+            wsum += w;
         }
-        return n > 0 ? { min: lo, avg: sum / n, max: hi } : null;
+        return wsum > 0 ? { min: lo, avg: sum / wsum, max: hi } : null;
     }
     readonly property var cpuStat: stat("cpu")
     readonly property var gpuStat: stat("gpu")
@@ -263,14 +311,14 @@ PanelWindow {
                         ctx.strokeStyle = color;
                         ctx.lineJoin = "round";
                         ctx.beginPath();
-                        let prevT = -1;
+                        let prev = null;
                         for (const s of pts) {
                             const v = s[key];
-                            if (isNaN(v)) { prevT = -1; continue; }
+                            if (isNaN(v)) { prev = null; continue; }
                             const x = padL + w - ((now - s.t) / hud.windowSec) * w;
                             const y = yOf(v);
-                            if (prevT < 0 || s.t - prevT > hud.gapSec) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-                            prevT = s.t;
+                            if (!prev || s.t - prev.t > hud.gapLimit(prev, s)) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                            prev = s;
                         }
                         ctx.lineWidth = 2;
                         ctx.stroke();

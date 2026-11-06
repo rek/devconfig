@@ -21,7 +21,7 @@
 set -u
 
 CONFIG_DIR="${OMARCHY_PATH:?}/shell"
-WAIT_SECONDS=60          # time to unlock normally before we touch anything
+WAIT_SECONDS=60          # time to unlock normally before we touch anything; Omarchy 4.5.0 fixes the dead-input bug in LockView itself (was omacom/omarchy#12435), so this is only a safety net
 FCITX_SETTLE_SECONDS=15  # after restarting fcitx5, time for typing to work before the shell restart
 POLL_SECONDS=2
 

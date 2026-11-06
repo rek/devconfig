@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# hyprland-log — keep Hyprland's own log across reboots, timestamped, with a
+# liveness heartbeat, so a post-resume freeze leaves evidence.
+#
+# Written after the second post-resume freeze (2026-05-26, 2026-11-06). The
+# journal showed a clean resume and then 77s of nothing, which cannot say
+# whether the compositor, the GPU or the display path died. Hyprland's log
+# could, but it lives on tmpfs ($XDG_RUNTIME_DIR/hypr/<signature>/hyprland.log)
+# — wiped by the very reboot the freeze forces — and its lines carry no times.
+#
+# Output, under ${STATE_DIR}:
+#   current.log     this session: Hyprland's log with a timestamp on every
+#                   line, the per-frame cursor/libinput spam dropped, and a
+#                   HEARTBEAT line every INTERVAL seconds
+#   session-*.log   earlier sessions (newest SESSIONS kept)
+#
+# After a freeze, open the previous session's file and look at where the
+# heartbeats end:
+#   hyprctl=TIMEOUT          the compositor stopped answering — a Hyprland hang
+#   hyprctl=ok, screen dead  compositor alive, display/GPU path wedged
+#   GAP                      this process wasn't running: suspend, or the whole
+#                            system stalled (hyprctl=ok right after = it came back)
+# Anything Hyprland logged in the last seconds sits just above.
+#
+# Lines are appended with one write each, so a SysRq-S sync after a freeze is
+# enough to get them to disk.
+
+set -uo pipefail
+
+STATE_DIR="${HYPRLAND_LOG_DIR:-$HOME/.local/state/hyprland-log}"
+CUR="$STATE_DIR/current.log"
+INTERVAL=15
+SESSIONS=8
+MAX_BYTES=$((32 * 1024 * 1024))   # a looping error (e.g. DRM atomic-commit EINVAL) must not fill the disk
+# Per-frame chatter that buries everything else.
+NOISE='Cursor buffer imported into KMS|button-debounce|Plane [0-9]+ (has|type)|Plane: checking for modifiers'
+
+SRC=$(ls -t "${XDG_RUNTIME_DIR:?}"/hypr/*/hyprland.log 2>/dev/null | head -n1)
+[[ -n $SRC ]] || { echo "hyprland-log: no Hyprland log under $XDG_RUNTIME_DIR/hypr" >&2; exit 1; }
+SIGNATURE=$(basename "$(dirname "$SRC")")
+export HYPRLAND_INSTANCE_SIGNATURE=$SIGNATURE   # for the heartbeat's hyprctl, even if the unit env lacks it
+
+mkdir -p "$STATE_DIR"
+
+stamp() { printf '%(%F %T%z)T %s\n' -1 "$*" >>"$CUR"; }
+
+# Roll the previous session aside, then prune.
+if [[ -s $CUR ]]; then
+  mv "$CUR" "$STATE_DIR/session-$(date -r "$CUR" +%Y%m%d-%H%M%S).log"
+fi
+ls -t "$STATE_DIR"/session-*.log 2>/dev/null | tail -n +$((SESSIONS + 1)) | xargs -r rm --
+
+# We start after Hyprland does. Replay what it already wrote (no timestamps
+# exist for it), then follow from the next line so nothing is lost or doubled.
+n=$(wc -l <"$SRC")
+stamp "== session $SIGNATURE: $n earlier lines follow without timestamps =="
+head -n "$n" "$SRC" | grep -vE "$NOISE" >>"$CUR"
+stamp "== live =="
+
+heartbeat() {
+  local last now rc state prev=ok
+  last=$(date +%s)
+  while sleep "$INTERVAL"; do
+    now=$(date +%s)
+    (( now - last > INTERVAL * 3 )) && stamp "GAP $((now - last))s since the last heartbeat (suspend, or the system stalled)"
+    last=$now
+
+    timeout 2 hyprctl version >/dev/null 2>&1
+    rc=$?
+    case $rc in
+      0)   state=ok ;;
+      124) state=TIMEOUT ;;
+      *)   state="error($rc)" ;;
+    esac
+    stamp "HEARTBEAT hyprctl=$state"
+    # Transitions also go to the journal, which survives the reboot too.
+    [[ $state == "$prev" ]] || logger -t hyprland-log "hyprctl $prev -> $state"
+    prev=$state
+
+    if (( $(stat -c %s "$CUR") > MAX_BYTES )); then
+      mv "$CUR" "$CUR.1"
+      stamp "== rotated: previous part in current.log.1 =="
+    fi
+  done
+}
+
+heartbeat &
+
+# Reopens $CUR per line, so the rotation above takes effect immediately.
+tail -n +$((n + 1)) -F "$SRC" 2>/dev/null | grep --line-buffered -vE "$NOISE" |
+  while IFS= read -r line; do
+    printf '%(%F %T%z)T %s\n' -1 "$line" >>"$CUR"
+  done

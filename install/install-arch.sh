@@ -165,6 +165,7 @@ done
 header "Enabling systemd user units..."
 systemctl --user daemon-reload
 for unit in \
+  hyprland-log.service \
   igpu-desktop-sync.path \
   igpu-desktop-sync.service \
   omarchy-agent-usage-byteplus.timer \

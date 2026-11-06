@@ -1,0 +1,20 @@
+[Unit]
+# Persistent, timestamped copy of Hyprland's log plus a liveness heartbeat —
+# see bin/hyprland-log for why this exists.
+Description=Persistent Hyprland log and heartbeat
+After=wayland-session-waitenv.service
+PartOf=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=simple
+ExecStart=%h/dev/devconfig/bin/hyprland-log
+Restart=on-failure
+RestartSec=5
+
+# Pure bookkeeping; never compete with the compositor for CPU or disk.
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=graphical-session.target

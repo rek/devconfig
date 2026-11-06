@@ -32,11 +32,23 @@ lock_field() {
   jq -r "$1" <<<"$2" 2>/dev/null
 }
 
+shell_instance_running() {
+  quickshell list -a -j 2>/dev/null |
+    jq -e --arg dir "$CONFIG_DIR/" 'any(.[]; .config_path | startswith($dir))' >/dev/null 2>&1
+}
+
 restart_and_relock() {
-  while timeout 5 quickshell kill -p "$CONFIG_DIR" --any-display >/dev/null 2>&1; do :; done
+  # Mirrors omarchy-restart-shell: a slow-dying shell outlives a short kill
+  # timeout, and the fresh one then refuses to start beside it (-n), leaving
+  # no shell and no lock at all (seen 2026-10-27 with a 5s timeout).
+  while timeout 30 quickshell kill -p "$CONFIG_DIR" --any-display >/dev/null 2>&1; do :; done
+  local deadline=$((SECONDS + 30))
+  while (( SECONDS < deadline )) && shell_instance_running; do
+    sleep 0.1
+  done
   hyprctl dispatch 'hl.dsp.exec_cmd("omarchy-launch-shell")' >/dev/null
 
-  local deadline=$((SECONDS + 20))
+  deadline=$((SECONDS + 20))
   while (( SECONDS < deadline )); do
     omarchy-shell shell ping >/dev/null 2>&1 && break
     sleep 0.2

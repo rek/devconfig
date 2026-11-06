@@ -214,17 +214,23 @@ PanelWindow {
                     }
                 }
 
-                Text {
-                    text: "LIVE toggle is on the front, top-right"
-                    color: "#446655"
-                    font.family: "JetBrainsMono Nerd Font"
-                    font.pixelSize: 10
-                }
-                Text {
-                    text: "off = frozen snapshot, no re-sort flicker"
-                    color: "#446655"
-                    font.family: "JetBrainsMono Nerd Font"
-                    font.pixelSize: 10
+                // The two notes read as one block, so they sit close together
+                // instead of costing a full settings gap each — at 5 rows the
+                // card is short and this column ran flush with its bottom edge.
+                Column {
+                    spacing: 3
+                    Text {
+                        text: "LIVE toggle is on the front, top-right"
+                        color: "#446655"
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 10
+                    }
+                    Text {
+                        text: "off = frozen snapshot, no re-sort flicker"
+                        color: "#446655"
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 10
+                    }
                 }
             }
         ]

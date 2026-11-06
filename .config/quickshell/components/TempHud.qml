@@ -421,14 +421,10 @@ PanelWindow {
                     font.family: Theme.fontFamily
                     font.pixelSize: 10
                 }
+                // One line, so the column ends clear of the card's bottom edge
+                // and stays left of the CLEAR button.
                 Text {
-                    text: "LIVE on = sample every " + (hud.liveInterval / 1000) + "s"
-                    color: "#446655"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 10
-                }
-                Text {
-                    text: "LIVE off = sampling paused, history kept"
+                    text: "LIVE on: every " + (hud.liveInterval / 1000) + "s · off: paused, history kept"
                     color: "#446655"
                     font.family: Theme.fontFamily
                     font.pixelSize: 10

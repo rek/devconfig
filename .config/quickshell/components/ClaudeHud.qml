@@ -80,6 +80,14 @@ PanelWindow {
         return rows;
     }
 
+    // The back is a fixed-height card and this list is whatever models were
+    // used today. Six rows (plus the footer) fit; past that, show the top five
+    // by tokens and count the rest, so the footer never runs off the bottom.
+    readonly property int maxModelRows: 6
+    readonly property var shownRows:
+        modelRows.length <= maxModelRows ? modelRows : modelRows.slice(0, maxModelRows - 1)
+    readonly property int hiddenRows: modelRows.length - shownRows.length
+
     function fmtTokens(n) {
         n = Number(n) || 0;
         if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
@@ -250,12 +258,20 @@ PanelWindow {
                 spacing: 6
 
                 Repeater {
-                    model: hud.modelRows
+                    model: hud.shownRows
                     delegate: Row {
                         width: parent.width
                         Text { width: 220; text: modelData.name; color: hud.fg; font.family: Theme.fontFamily; font.pixelSize: 12 }
                         Text { text: hud.fmtTokens(modelData.tokens); color: Qt.rgba(1, 1, 1, 0.75); font.family: Theme.fontFamily; font.pixelSize: 12 }
                     }
+                }
+
+                Text {
+                    visible: hud.hiddenRows > 0
+                    text: "+" + hud.hiddenRows + " more " + (hud.hiddenRows === 1 ? "model" : "models")
+                    color: "#446655"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 12
                 }
 
                 Text {

@@ -1,15 +1,18 @@
 // CPU + GPU temperature over time — two traces (CPU magenta, GPU amber, same
 // colors the scope HUD uses for those subsystems) on a fixed °C axis, newest
-// sample at the right edge, scrolling left across a 10-minute window.
+// sample at the right edge, scrolling left across a window of 10m, 1h or 6h
+// (picked on the back; the graph and the min/avg/max both follow it).
 //
 // Samples every 5s while the front's LIVE toggle is on. Off pauses sampling
 // entirely (rather than dropping to a slow background poll like the other
 // HUDs): the x-axis is real time, so a gap in the line honestly shows when
 // nothing was recorded. The history lives in memory only — it restarts empty
-// when quickshell reloads.
+// when quickshell reloads, so a longer window is only as full as the time
+// recorded since (the back says how much that is).
 // Pass `anchorBelow` to hang its top edge directly off another card's bottom
 // (same convention as IssuesHud). Sits on the left edge, so it can stack under
-// the issues cards. Drag to flip for min/avg/max over the window.
+// the issues cards. Drag to flip for min/avg/max over the window; CLEAR there
+// restarts just those numbers, the graph keeps its history.
 //
 // Data comes from scripts/temps.sh -> "epoch|cpuC|gpuC" ("--" = no sensor).
 
@@ -30,7 +33,11 @@ PanelWindow {
     readonly property color gpuColor: "#ff9e00"
 
     readonly property int liveInterval: 5000
-    readonly property int windowSec: 600
+    // Selectable spans, in seconds. Samples are kept for the longest one so
+    // widening the span shows what was already recorded.
+    readonly property var spans: ({ "10m": 600, "1h": 3600, "6h": 21600 })
+    readonly property int retainSec: 21600
+    readonly property int windowSec: spans[spanPick.value] || 600
     // Longest sample spacing still drawn as one continuous line; anything
     // wider (LIVE was off, or a poll was missed) breaks the trace.
     readonly property int gapSec: 12
@@ -74,11 +81,24 @@ PanelWindow {
         const p = (line || "").split("|");
         const t = parseInt(p[0]);
         if (isNaN(t)) return;
-        const cutoff = t - hud.windowSec;
+        const cutoff = t - hud.retainSec;
         hud.samples = hud.samples
             .concat([{ t: t, cpu: parseFloat(p[1]), gpu: parseFloat(p[2]) }])
             .filter(s => s.t >= cutoff);
     }
+
+    // The samples inside the selected span, measured back from the newest.
+    readonly property var windowed: {
+        if (samples.length === 0) return [];
+        const cutoff = samples[samples.length - 1].t - windowSec;
+        return samples.filter(s => s.t >= cutoff);
+    }
+
+    // Min/avg/max only count samples from this epoch on; CLEAR moves it to now.
+    property real statsSince: 0
+    readonly property var statSamples: windowed.filter(s => s.t >= statsSince)
+    readonly property int recordedSec:
+        statSamples.length > 1 ? statSamples[statSamples.length - 1].t - statSamples[0].t : 0
 
     readonly property var last: samples.length > 0 ? samples[samples.length - 1] : null
     readonly property real cpuNow: last ? last.cpu : NaN
@@ -86,7 +106,7 @@ PanelWindow {
 
     function stat(key) {
         let lo = Infinity, hi = -Infinity, sum = 0, n = 0;
-        for (const s of hud.samples) {
+        for (const s of hud.statSamples) {
             const v = s[key];
             if (isNaN(v)) continue;
             lo = Math.min(lo, v);
@@ -101,6 +121,12 @@ PanelWindow {
 
     function fmt(v) { return isNaN(v) ? "--" : Math.round(v) + "°C"; }
     function cell(st, k) { return st ? Math.round(st[k]) + "°C" : "--"; }
+    // 45 -> "45s", 600 -> "10m", 5400 -> "1.5h".
+    function spanText(sec) {
+        return sec < 60   ? sec + "s"
+             : sec < 3600 ? Math.round(sec / 60) + "m"
+             :              Math.round(sec / 360) / 10 + "h";
+    }
 
     // Heat colour: green < 60, yellow < 75, orange < 90, red above — same
     // ramp as the stats card's TMP row.
@@ -188,7 +214,7 @@ PanelWindow {
 
             Text {
                 anchors { right: parent.right; rightMargin: 14; verticalCenter: readout.verticalCenter }
-                text: (hud.windowSec / 60) + "m window"
+                text: hud.spanText(hud.windowSec) + " window"
                 color: "#446655"
                 font.family: Theme.fontFamily
                 font.pixelSize: 10
@@ -200,7 +226,7 @@ PanelWindow {
                     top: readout.bottom; left: parent.left; right: parent.right; bottom: parent.bottom
                     topMargin: 8; leftMargin: 14; rightMargin: 14; bottomMargin: 14
                 }
-                property var series: hud.samples
+                property var series: hud.windowed
                 onSeriesChanged: requestPaint()
                 onWidthChanged: requestPaint()
                 onHeightChanged: requestPaint()
@@ -262,7 +288,7 @@ PanelWindow {
 
                 Text {
                     anchors.centerIn: parent
-                    visible: hud.samples.length < 2
+                    visible: hud.windowed.length < 2
                     text: live.value ? "sampling…" : "paused — toggle LIVE to record"
                     color: "#446655"
                     font.family: Theme.fontFamily
@@ -283,6 +309,22 @@ PanelWindow {
                 font.family: Theme.fontFamily
                 font.pixelSize: 13
                 font.bold: true
+            },
+
+            OptionList {
+                id: spanPick
+                anchors { verticalCenter: backTitle.verticalCenter; right: parent.right; rightMargin: 14 }
+                stateName: "temp-span"
+                options: ["10m", "1h", "6h"]
+                accent: hud.fg
+            },
+
+            IconButton {
+                anchors { bottom: parent.bottom; right: parent.right; margins: 14 }
+                icon: "󰆴"           // nf-md-delete
+                label: "CLEAR"
+                accent: hud.fg
+                onClicked: hud.statsSince = Date.now() / 1000
             },
 
             Rectangle {
@@ -324,7 +366,9 @@ PanelWindow {
                 Item { width: 1; height: 4 }
 
                 Text {
-                    text: "last " + (hud.windowSec / 60) + " min · " + hud.samples.length + " samples"
+                    text: "last " + hud.spanText(hud.windowSec) + " · "
+                        + hud.spanText(hud.recordedSec) + " recorded · "
+                        + hud.statSamples.length + " samples"
                     color: "#446655"
                     font.family: Theme.fontFamily
                     font.pixelSize: 10

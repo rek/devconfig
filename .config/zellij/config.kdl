@@ -54,7 +54,8 @@ keybinds clear-defaults=true {
         bind "s" { ToggleActiveSyncTab; SwitchToMode "normal"; }
         bind "Ctrl t" { SwitchToMode "normal"; }
         bind "x" { CloseTab; SwitchToMode "normal"; }
-        bind "tab" { ToggleTab; }
+        bind "tab" { GoToNextTab; }
+        bind "Shift tab" { GoToPreviousTab; }
     }
     resize {
         bind "left" { Resize "Increase left"; }
@@ -161,6 +162,8 @@ keybinds clear-defaults=true {
         bind "Alt f" { ToggleFloatingPanes; }
         bind "Ctrl g" { SwitchToMode "locked"; }
         bind "Alt i" { MoveTab "left"; }
+        bind "Ctrl ," "Ctrl <" { GoToPreviousTab; }
+        bind "Ctrl ." "Ctrl >" { GoToNextTab; }
         bind "Alt a" {
             // The "agent-status" alias below — same instance as load_plugins.
             MessagePlugin "agent-status" {
@@ -490,7 +493,7 @@ scrollback_lines_to_serialize 10000
 // (Requires restart)
 // Default: true (if the host terminal supports it)
 // 
-support_kitty_keyboard_protocol false
+support_kitty_keyboard_protocol true
 // Whether to make sure a local web server is running when a new Zellij session starts.
 // This web server will allow creating new sessions and attaching to existing ones that have
 // opted in to being shared in the browser.

@@ -1,0 +1,27 @@
+#!/bin/bash
+# Wire omp (oh-my-pi coding agent) to zellij-agent-status so omp tabs show
+# agent state. omp never runs the ~/.claude/settings.json hooks that Claude
+# Code and Grok use, so it gets its own extension that calls the same hook
+# script. Idempotent: one symlink into omp's user extension dir.
+#
+# The plugin (v0.1.8+) also writes this extension on first load; the symlink
+# makes that write land in the tracked file, like the hook script.
+#
+# Covers the default omp profile only; `omp --profile <name>` loads
+# ~/.omp/profiles/<name>/agent/extensions/ instead.
+set -e
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCE="$REPO_ROOT/.omp/extensions/agent-status.ts"
+DEST_DIR="$HOME/.omp/agent/extensions"
+DEST="$DEST_DIR/agent-status.ts"
+
+if [ ! -f "$SOURCE" ]; then
+  echo "Missing $SOURCE" >&2
+  exit 1
+fi
+
+mkdir -p "$DEST_DIR"
+ln -sfn "$SOURCE" "$DEST"
+echo "Linked: $DEST -> $SOURCE"
+echo "Restart running omp sessions to load the extension (check with /extensions)."

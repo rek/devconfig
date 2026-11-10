@@ -205,10 +205,11 @@ else
   bash "$REPO_ROOT/install/install-zellij"
 fi
 
-# zellij-agent-status plugin + the Claude Code hooks that drive it
+# zellij-agent-status plugin + the Claude Code hooks and omp extension that drive it
 header "Installing zellij-agent-status..."
 bash "$REPO_ROOT/install/install-zellij-agent-status"
 bash "$REPO_ROOT/install/install-claude-hooks"
+bash "$REPO_ROOT/install/install-omp-agent-status"
 
 # ---------------------------------------------------------------------------
 # 11. kubectx / kubens via AUR

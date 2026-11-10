@@ -26,6 +26,7 @@ CI + release workflows on tag push.
 | Hook script | devconfig `.config/zellij/agent-status-hook.sh` (live at `~/.config/zellij/`) | pipes `pane:state` to the plugin; written by the plugin's first-load installer from its template |
 | Plugin pin file | devconfig `.config/zellij/agent-status-plugin.url` (live at `~/.config/zellij/`) | first line = the alias URL from config.kdl; the hook pipes `--plugin` to it alone. Keep in sync with config.kdl |
 | Agent hooks | `~/.claude/settings.json` | UserPromptSubmit/PostToolUse → working, Notification → waiting, Stop → stop, SessionEnd → end. Written by the plugin's first-load installer; Grok Build uses the same file |
+| omp extension | devconfig `.omp/extensions/agent-status.ts`, symlinked to `~/.omp/agent/extensions/` by `install/install-omp-agent-status` | omp never runs the `settings.json` hooks, so this maps its events onto the same hook script (table in the plugin README, "omp"). Source of truth is the plugin repo's `scripts/omp-agent-status.ts` since v0.1.8: the plugin's first-load installer rewrites this file through the symlink on a version bump, same as the hook script. Main agent only; default omp profile only |
 | Zellij plugin cache | `~/.cache/zellij/**` | compiled plugins cached by URL — must be dropped on update, or the old build keeps running |
 
 ## The rule: run the published release

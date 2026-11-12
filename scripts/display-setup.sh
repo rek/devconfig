@@ -11,6 +11,7 @@
 #   Philips — description matches "Philips" / "PHL" (fallback: any 2560x1440)
 #   Glasses — description matches "XREAL" / "Nreal"
 #   Other   — anything else; fills the "third" slot in desk mode
+#   (virtual/headless outputs such as CAPTURE are ignored and left as they are)
 #
 # Modes:
 #
@@ -83,6 +84,16 @@ classify() {
     json=$(hyprctl -j monitors all)
 
     while IFS=$'\t' read -r name desc w h; do
+        # Virtual outputs are not screens: skip them so no mode ever lays out,
+        # disables or persists them. CAPTURE is the headless monitor test runs
+        # draw on (makektm games tools/display/offscreen.sh); Hyprland's default
+        # headless names are HEADLESS-N. A headless output has no EDID, so an
+        # empty description is the catch-all. Without this, an unrecognised
+        # real monitor (an office Acer) and CAPTURE share the OTHERS list and
+        # whichever sorts second gets disabled, CAPTURE included (2026-11-12).
+        if [[ $name == CAPTURE || $name == HEADLESS-* || -z $desc ]]; then
+            continue
+        fi
         MON_DESC[$name]="$desc"
         MON_W[$name]="$w"
         MON_H[$name]="$h"

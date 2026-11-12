@@ -6,6 +6,16 @@ local omarchy_monitor_scale = 1
 
 hl.env("GDK_SCALE", tostring(omarchy_gdk_scale))
 
+-- External monitors hang off the NVIDIA card, so every frame they show is
+-- copied over from the Intel GPU, gated by an explicit sync fence. When the
+-- laptop sleeps with a monitor attached and wakes without it (or with a
+-- different one), nvidia-drm logs "Failed to register auto-value-update ...
+-- sync FD semaphore surface", the fence never signals, and Hyprland hangs for
+-- good (2026-11-11, 2026-11-12). This drops explicit sync for that copy only,
+-- falling back to implicit sync. Aquamarine reads it on the first copy, which
+-- comes after this config runs.
+hl.env("AQ_MGPU_NO_EXPLICIT", "1")
+
 -- Fallback layout, used when no persisted layout exists.
 local function apply_default_layout()
   -- Desk monitor (Philips 144Hz).

@@ -27,8 +27,15 @@ o.window({
   title = "^(File Browser|Blender File View)$",
 }, { tag = "+floating-window" })
 
--- Car Smasher test runs (agents launch the game windowed for screenshots /
--- perf). Keep them on the laptop screen (workspace 1 = eDP-2) without
--- stealing focus from the external monitors. Class is the Godot project name;
--- the Godot editor has class "Godot", so it is untouched.
-o.window({ class = "^(Car Smasher)$" }, { workspace = "1 silent", no_initial_focus = true })
+-- Godot game test runs (agents capture screenshots / measure frame time, and
+-- the games run windowed). They open on CAPTURE, a headless
+-- virtual monitor created at startup (autostart.lua), so they render on the GPU
+-- but never show on a real screen or steal focus. The Godot editor has class
+-- "Godot" and is untouched. To play a game yourself, use
+-- `tools/godot/play.sh apps/<game>` in the games repo: it pulls the window to
+-- the monitor you're on.
+hl.monitor({ output = "CAPTURE", mode = "1080x2340@60", position = "20000x20000", scale = 1 })
+o.window(
+  { class = [[^(Car Smasher|Game 6|Stunt Yard|Smash Sandbox|Balloons|Lane Shooter Two)$]] },
+  { monitor = "CAPTURE", no_initial_focus = true }
+)

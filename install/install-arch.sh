@@ -172,7 +172,6 @@ for unit in \
   omarchy-agent-usage-cline.timer \
   omarchy-agent-usage-grok.timer \
   omarchy-agent-usage-openrouter.timer \
-  omarchy-lock-resume-heal.service \
   thermal-log.service
 do
   systemctl --user enable --now "$unit" >/dev/null 2>&1 \

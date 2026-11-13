@@ -14,7 +14,10 @@ hl.env("GDK_SCALE", tostring(omarchy_gdk_scale))
 -- good (2026-11-11, 2026-11-12). This drops explicit sync for that copy only,
 -- falling back to implicit sync. Aquamarine reads it on the first copy, which
 -- comes after this config runs.
-hl.env("AQ_MGPU_NO_EXPLICIT", "1")
+-- DISABLED 2026-11-13: with this on from session start, the external monitor
+-- flickers (frames shown before the copy finishes). Re-enable only with a fix
+-- that doesn't cost the display.
+-- hl.env("AQ_MGPU_NO_EXPLICIT", "1")
 
 -- Fallback layout, used when no persisted layout exists.
 local function apply_default_layout()

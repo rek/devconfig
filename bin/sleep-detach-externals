@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# sleep-detach-externals — turn off external monitors just before suspend and
+# bring them back after resume.
+#
+# Why: external monitors hang off the NVIDIA card, so every frame is copied
+# over from the Intel GPU behind a sync fence. Sleeping with a monitor attached
+# and waking without it (or with a different one) left nvidia-drm with a fence
+# that never signals and Hyprland hung for good (2026-11-11, 2026-11-12).
+# AQ_MGPU_NO_EXPLICIT=1 stopped that but made the external monitor flicker, so
+# it was reverted (2026-11-13). This does the manual workaround automatically:
+# go to sleep with only the laptop panel, wake with only the laptop panel, and
+# only then re-enable whatever is still plugged in.
+#
+# Modes:
+#   sleep-detach-externals            daemon: watch logind, detach/restore around sleep
+#   sleep-detach-externals detach     disable external outputs now (saves their layout)
+#   sleep-detach-externals restore    re-enable the saved outputs
+#
+# The daemon holds a systemd "delay" inhibitor on sleep so logind waits for the
+# monitors to be off (bounded by InhibitDelayMaxSec, 5s by default).
+
+set -uo pipefail
+
+STATE="${XDG_RUNTIME_DIR:-/tmp}/sleep-detach-externals.json"
+TAG=sleep-detach-externals
+
+log() { logger -t "$TAG" -- "$*"; echo "$*" >&2; }
+
+# Under a user service the instance signature may not be imported; find it.
+if [[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+  sig=$(ls -t "${XDG_RUNTIME_DIR:-/run/user/$UID}/hypr" 2>/dev/null | head -1)
+  [[ -n "$sig" ]] && export HYPRLAND_INSTANCE_SIGNATURE="$sig"
+fi
+
+# External = not the laptop panel (eDP*) and not a virtual output
+# (CAPTURE, HEADLESS-*), same rule as scripts/display-setup.sh.
+externals() {
+  hyprctl -j monitors all 2>/dev/null | jq -c '
+    [ .[] | select((.name | test("^(eDP|CAPTURE|HEADLESS)") | not) and (.disabled | not))
+      | {name, mode: "\(.width)x\(.height)@\(.refreshRate * 100 | round / 100)", x, y, scale} ]'
+}
+
+detach() {
+  local list; list=$(externals)
+  [[ -z "$list" || "$list" == "[]" ]] && { rm -f "$STATE"; return 0; }
+  # Keep an earlier save if we are called twice before a restore.
+  [[ -f "$STATE" ]] || printf '%s\n' "$list" > "$STATE"
+  jq -r '.[].name' <<<"$list" | while read -r name; do
+    log "disabling $name before sleep"
+    hyprctl eval "hl.monitor({ output = \"$name\", disabled = true })" >/dev/null
+  done
+  sleep 0.5   # let the compositor finish the disable commit
+}
+
+restore() {
+  [[ -f "$STATE" ]] || return 0
+  local saved; saved=$(<"$STATE")
+  # Only the ones still plugged in come back: a disabled monitor stays listed
+  # while connected and vanishes when unplugged.
+  local present; present=$(hyprctl -j monitors all 2>/dev/null | jq -r '.[].name')
+  jq -c '.[]' <<<"$saved" | while read -r m; do
+    name=$(jq -r .name <<<"$m")
+    if grep -qx "$name" <<<"$present"; then
+      log "re-enabling $name"
+      hyprctl eval "hl.monitor({ output = \"$name\", mode = \"$(jq -r .mode <<<"$m")\", position = \"$(jq -r .x <<<"$m")x$(jq -r .y <<<"$m")\", scale = $(jq -r .scale <<<"$m"), disabled = false })" >/dev/null
+    else
+      log "$name no longer connected; leaving it off"
+    fi
+  done
+  rm -f "$STATE"
+}
+
+case "${1:-}" in
+  detach)  detach; exit ;;
+  restore) restore; exit ;;
+  "")      ;;
+  *)       echo "usage: $0 [detach|restore]" >&2; exit 2 ;;
+esac
+
+lock_pid=
+take_lock() {
+  [[ -n "$lock_pid" ]] && kill -0 "$lock_pid" 2>/dev/null && return
+  systemd-inhibit --what=sleep --mode=delay --who="$TAG" \
+    --why="Turn off external monitors before suspend" sleep infinity &
+  lock_pid=$!
+}
+drop_lock() {
+  [[ -n "$lock_pid" ]] && kill "$lock_pid" 2>/dev/null
+  wait "$lock_pid" 2>/dev/null
+  lock_pid=
+}
+trap 'drop_lock; exit 0' TERM INT
+
+take_lock
+log "watching for suspend (hyprland instance ${HYPRLAND_INSTANCE_SIGNATURE:-unknown})"
+
+# gdbus subscribes normally; dbus-monitor needs eavesdrop rights the system bus denies.
+gdbus monitor --system --dest org.freedesktop.login1 --object-path /org/freedesktop/login1 |
+while read -r line; do
+  case "$line" in
+    *PrepareForSleep*"(true,)"*)
+      detach
+      drop_lock          # let logind go to sleep
+      ;;
+    *PrepareForSleep*"(false,)"*)
+      take_lock          # ready for the next sleep before doing anything slow
+      sleep 2            # let the display come up (omarchy-system-wake runs after 1s)
+      for _ in 1 2 3; do restore; [[ -f "$STATE" ]] || break; sleep 2; done
+      ;;
+  esac
+done

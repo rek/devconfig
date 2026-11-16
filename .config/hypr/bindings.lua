@@ -46,7 +46,11 @@ o.bind("SUPER + SHIFT + ALT + X", "X Post", [[omarchy-launch-webapp "https://x.c
 local paths = require("default.hypr.paths")
 local scripts = paths.config_home .. "/hypr/scripts"
 
-o.bind("CTRL + ALT + 6", "Move window to next monitor", scripts .. "/move-to-next-monitor.sh")
+-- Monitor cycling skips the headless CAPTURE output (Godot test runs), which
+-- Omarchy's "+1"/"-1" defaults would otherwise land on. See cycle-monitor.sh.
+o.bind("CTRL + ALT + 6", "Move window to next monitor", scripts .. "/cycle-monitor.sh move next")
+o.rebind("CTRL + ALT + TAB", "Focus on next monitor", scripts .. "/cycle-monitor.sh focus next")
+o.rebind("CTRL + ALT + SHIFT + TAB", "Focus on previous monitor", scripts .. "/cycle-monitor.sh focus prev")
 o.bind("CTRL + ALT + 7", "Tile with others on monitor", scripts .. "/tile-with-others.sh")
 o.bind("CTRL + ALT + 8", "Full screen", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 o.bind("CTRL + ALT + 9", "Cycle to previous visible window", "hyprctl dispatch cyclenext 'prev visible'")

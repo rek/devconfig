@@ -1,13 +1,9 @@
--- Workspace → monitor bindings + mode-agnostic window rules.
--- Monitor names assume desk mode (laptop + Philips + Acer). A rule for an
--- absent monitor is silently ignored, so this is safe across modes.
+-- Mode-agnostic window rules.
 --
--- Per-class launch placement lives in ~/.config/hypr/modes/<mode>.conf,
--- selected via the `mode` command.
-
-hl.workspace_rule({ workspace = "1", monitor = "eDP-2", default = true })
-hl.workspace_rule({ workspace = "2", monitor = "DP-2", default = true })
-hl.workspace_rule({ workspace = "3", monitor = "DP-1", default = true })
+-- No workspace -> monitor pins here: Omarchy gives each physical monitor its
+-- own block of ten workspaces (default/hypr/monitor-workspaces.lua), and
+-- number pins like "workspace 2 -> DP-2" fought that, pulling workspace 2 off
+-- the laptop's block onto the external monitor.
 
 -- Pyprland dropdown terminal: force it floating so the scratchpad shows as an
 -- overlay instead of tiling into the layout. pyprland normally floats it

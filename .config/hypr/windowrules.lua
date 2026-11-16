@@ -37,5 +37,7 @@ o.window({
 hl.monitor({ output = "CAPTURE", mode = "1080x2340@60", position = "20000x20000", scale = 1 })
 o.window(
   { class = [[^(Car Smasher|Game 6|Stunt Yard|Smash Sandbox|Balloons|Lane Shooter Two)$]] },
-  { monitor = "CAPTURE", no_initial_focus = true }
+  -- float: tiled, each new test window split CAPTURE, and a few hung runs shrank later shots to
+  -- 53x63 px (2026-11-12). Floating, each keeps the size Godot asks for.
+  { monitor = "CAPTURE", no_initial_focus = true, float = true }
 )

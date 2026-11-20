@@ -19,6 +19,7 @@
 #      parser) and persists it to ~/.config/hypr/monitors-runtime.lua. This
 #      runs LAST among config-affecting steps so nothing overwrites it after.
 #   4. Launch any per-mode apps that aren't already running.
+#   5. Zoom Zellij terminal windows to the mode's font size (zellij-font.sh).
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -73,5 +74,10 @@ case "$mode" in
         launch_if_missing google-chrome   "$HOME/.local/bin/google-chrome-stable-igpu"
         ;;
 esac
+
+# 5. Zellij terminal font size: work keeps the configured size, home is two
+#    steps larger. Open windows are zoomed now; new ones by the window.open
+#    hook in .config/hypr/windowrules.lua.
+"$SCRIPT_DIR/zellij-font.sh" || true
 
 echo "Mode: $mode"

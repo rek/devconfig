@@ -37,3 +37,12 @@ o.window(
   -- 53x63 px (2026-11-12). Floating, each keeps the size Godot asks for.
   { monitor = "CAPTURE", no_initial_focus = true, float = true }
 )
+
+-- Zellij terminal windows (`zellij terminal`) open at the configured font size;
+-- in home mode scripts/zellij-font.sh zooms each new one two steps larger.
+-- mode-button.sh runs the same script for windows already open on a switch.
+hl.on("window.open", function(window)
+  if window and window.class == "dev.zellij.Zellij" then
+    hl.exec_cmd(os.getenv("HOME") .. "/dev/devconfig/scripts/zellij-font.sh " .. window.address)
+  end
+end)

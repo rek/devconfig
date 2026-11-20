@@ -1,5 +1,5 @@
 #!/bin/sh
-# zellij-agent-status v0.1.8
+# zellij-agent-status v0.1.9
 # Drive zellij-agent-status from an agent hook (Claude Code or Grok).
 # Usage: agent-status-hook.sh <working|waiting|done|idle|end|stop>
 #

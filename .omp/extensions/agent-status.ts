@@ -1,4 +1,4 @@
-// zellij-agent-status v0.1.8
+// zellij-agent-status v0.1.9
 // omp (oh-my-pi coding agent) extension: drive zellij-agent-status tab badges.
 //
 // Claude Code and Grok reach the plugin through hooks in ~/.claude/settings.json,

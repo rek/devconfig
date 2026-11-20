@@ -297,7 +297,7 @@ plugins {
         welcome_screen true
     }
     // github.com/rek/zellij-agent-status
-    agent-status location="file:${HOME}/.config/zellij/plugins/zellij-agent-status.wasm"
+    agent-status location="https://github.com/rek/zellij-agent-status/releases/latest/download/zellij-agent-status.wasm"
 }
 
 // Plugins to load in the background when a new session starts

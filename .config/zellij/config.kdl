@@ -599,3 +599,10 @@ show_startup_tips false
 // typically work best. Set to 0 to use the number of (physical) CPU cores.
 // Note: This only applies to web clients at the moment.
 // client_async_worker_tasks 4
+
+// Zellij terminal window (`zellij terminal`). Read when a window opens, and
+// the size Ctrl+0 resets to. Work mode uses it as is; home mode zooms two steps
+// larger (scripts/zellij-font.sh).
+terminal {
+    font_size 9
+}

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 # Font size of Zellij terminal windows (`zellij terminal`, class
-# dev.zellij.Zellij) per mode: work keeps the configured size (12pt, Zellij's
-# default — config.kdl sets no font_size), home is two zoom steps larger.
+# dev.zellij.Zellij) per mode: work keeps the configured size (font_size 9 in
+# config.kdl), home is two zoom steps larger.
 #
 # Zellij's terminal reads font_size only when a window opens, so instead of
 # rewriting config.kdl (a tracked file) this zooms windows with the terminal's
